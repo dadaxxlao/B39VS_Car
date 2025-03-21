@@ -17,10 +17,16 @@ private:
     
     // 用于颜色识别的阈值
     struct ColorThreshold {
+        // RGB阈值（兼容旧算法）
         uint16_t minR, maxR;
         uint16_t minG, maxG;
         uint16_t minB, maxB;
         uint16_t minC, maxC; // 清晰度/强度
+        
+        // HSV阈值（新算法）
+        float minH, maxH;  // 色相范围
+        float minS, maxS;  // 饱和度范围
+        float minV, maxV;  // 明度范围
     };
     
     // 为每种颜色定义阈值
@@ -29,8 +35,17 @@ private:
     // 初始化颜色阈值
     void initColorThresholds();
     
+    // RGB转HSV颜色空间
+    void rgbToHSV(uint16_t r, uint16_t g, uint16_t b, float* h, float* s, float* v);
+    
     // 根据RGB值识别颜色
     ColorCode identifyColor(uint16_t r, uint16_t g, uint16_t b, uint16_t c);
+    
+    // 使用HSV算法识别颜色
+    ColorCode identifyColorHSV(uint16_t r, uint16_t g, uint16_t b, uint16_t c);
+    
+    // 使用RGB算法识别颜色（兼容旧版）
+    ColorCode identifyColorRGB(uint16_t r, uint16_t g, uint16_t b, uint16_t c);
 
 public:
     ColorSensor();
