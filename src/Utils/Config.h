@@ -1,6 +1,8 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
+#include <Arduino.h>
+
 // 机器人模式相关常量
 #define MODE_LINE_FOLLOW     0
 #define MODE_OBJECT_FIND     1

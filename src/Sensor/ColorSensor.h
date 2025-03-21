@@ -49,6 +49,20 @@ public:
     
     // 调试打印
     void debugPrint();
+    
+    // 控制传感器LED
+    void lock();   // 关闭LED
+    void unlock(); // 打开LED
+    
+    // 颜色校准函数
+    void calibrateColor(ColorCode color);
+    
+    // 打印原始RGB值和比例值
+    void printRawValues();
+    
+    // 计算RGB比例
+    void calculateNormalizedRGB(uint16_t r, uint16_t g, uint16_t b, uint16_t c, 
+                                float* normR, float* normG, float* normB);
 };
 
 #endif // COLOR_SENSOR_H 

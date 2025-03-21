@@ -16,7 +16,8 @@ bool ColorSensor::begin(uint8_t addr) {
     }
     
     // 设置适当的增益和积分时间
-    tcs.setGain(TCS34725_GAIN_4X);
+    // 增加增益，适合低光条件，积分时间增加提高精度
+    tcs.setGain(TCS34725_GAIN_16X);
     tcs.setIntegrationTime(TCS34725_INTEGRATIONTIME_154MS);
     
     Logger::info("TCS34725颜色传感器初始化成功");
@@ -105,24 +106,47 @@ ColorCode ColorSensor::readColor() {
     return identifyColor(r, g, b, c);
 }
 
-ColorCode ColorSensor::identifyColor(uint16_t r, uint16_t g, uint16_t b, uint16_t c) {
-    // 标准化RGB值到0-255范围
-    uint8_t normR = map(r, 0, 1024, 0, 255);
-    uint8_t normG = map(g, 0, 1024, 0, 255);
-    uint8_t normB = map(b, 0, 1024, 0, 255);
-    uint8_t normC = map(c, 0, 1024, 0, 255);
-    
-    // 检查每种颜色的阈值匹配
-    for (int i = 0; i < COLOR_COUNT - 1; i++) { // 不包括COLOR_UNKNOWN
-        if (normR >= colorThresholds[i].minR && normR <= colorThresholds[i].maxR &&
-            normG >= colorThresholds[i].minG && normG <= colorThresholds[i].maxG &&
-            normB >= colorThresholds[i].minB && normB <= colorThresholds[i].maxB &&
-            normC >= colorThresholds[i].minC && normC <= colorThresholds[i].maxC) {
-            return static_cast<ColorCode>(i);
-        }
+void ColorSensor::calculateNormalizedRGB(uint16_t r, uint16_t g, uint16_t b, uint16_t c,
+                                         float* normR, float* normG, float* normB) {
+    // 检查总亮度是否足够
+    uint32_t sum = c;
+    if (sum < 10) {
+        *normR = 0;
+        *normG = 0;
+        *normB = 0;
+        return;
     }
     
-    // 如果没有匹配的颜色，返回未知
+    // 计算RGB比例
+    *normR = r; *normR /= sum; *normR *= 255;
+    *normG = g; *normG /= sum; *normG *= 255;
+    *normB = b; *normB /= sum; *normB *= 255;
+}
+
+ColorCode ColorSensor::identifyColor(uint16_t r, uint16_t g, uint16_t b, uint16_t c) {
+    // 计算RGB比例
+    float normR, normG, normB;
+    calculateNormalizedRGB(r, g, b, c, &normR, &normG, &normB);
+    
+    // 检查光线是否足够
+    if (c < 10) return COLOR_UNKNOWN; // 光线太暗，无法可靠判断
+    
+    // 基于RGB比例判断颜色
+    // 红色: R比例高，G和B比例低
+    if (normR > 120 && normG < 80 && normB < 80) return COLOR_RED;
+    
+    // 蓝色: B比例高，R和G比例低
+    if (normB > 120 && normR < 80 && normG < 80) return COLOR_BLUE;
+    
+    // 黄色: R和G比例高，B比例低
+    if (normR > 100 && normG > 100 && normB < 80) return COLOR_YELLOW;
+    
+    // 白色: 所有比例都高
+    if (normR > 90 && normG > 90 && normB > 90) return COLOR_WHITE;
+    
+    // 黑色: 所有比例都低，或者整体亮度低
+    if ((normR < 50 && normG < 50 && normB < 50) || c < 30) return COLOR_BLACK;
+    
     return COLOR_UNKNOWN;
 }
 
@@ -154,6 +178,11 @@ void ColorSensor::debugPrint() {
     Logger::debug("颜色传感器数据: R=%d, G=%d, B=%d, C=%d", r, g, b, c);
     Logger::debug("色温: %.2f K, 亮度: %.2f lux", colorTemp, lux);
     
+    // 计算并打印RGB比例
+    float normR, normG, normB;
+    calculateNormalizedRGB(r, g, b, c, &normR, &normG, &normB);
+    Logger::debug("RGB比例: R=%.2f, G=%.2f, B=%.2f", normR, normG, normB);
+    
     // 打印检测到的颜色
     ColorCode color = identifyColor(r, g, b, c);
     const char* colorName;
@@ -168,4 +197,93 @@ void ColorSensor::debugPrint() {
     }
     
     Logger::debug("检测到颜色: %s", colorName);
+}
+
+void ColorSensor::lock() {
+    if (initialized) {
+        // 关闭TCS34725的LED
+        // 注意：这取决于Adafruit_TCS34725库是否支持
+        // 需要检查库是否有以下函数或类似功能
+        tcs.disable();
+    }
+}
+
+void ColorSensor::unlock() {
+    if (initialized) {
+        // 打开TCS34725的LED
+        tcs.enable();
+    }
+}
+
+void ColorSensor::calibrateColor(ColorCode color) {
+    if (!initialized) {
+        Logger::error("颜色传感器未初始化，无法校准");
+        return;
+    }
+    
+    uint32_t sumR = 0, sumG = 0, sumB = 0, sumC = 0;
+    const int samples = 10;
+    
+    Logger::info("开始校准颜色，请保持传感器位置不变...");
+    
+    // 采集多个样本并平均
+    for (int i = 0; i < samples; i++) {
+        update();
+        sumR += r; sumG += g; sumB += b; sumC += c;
+        Logger::debug("采样 %d: R=%d, G=%d, B=%d, C=%d", i+1, r, g, b, c);
+        delay(100); // 采样间隔
+    }
+    
+    // 计算平均值
+    uint16_t avgR = sumR / samples;
+    uint16_t avgG = sumG / samples;
+    uint16_t avgB = sumB / samples;
+    uint16_t avgC = sumC / samples;
+    
+    // 计算RGB比例
+    float normR, normG, normB;
+    calculateNormalizedRGB(avgR, avgG, avgB, avgC, &normR, &normG, &normB);
+    
+    // 打印校准值
+    const char* colorName;
+    switch (color) {
+        case COLOR_RED:    colorName = "红色"; break;
+        case COLOR_BLUE:   colorName = "蓝色"; break;
+        case COLOR_YELLOW: colorName = "黄色"; break;
+        case COLOR_WHITE:  colorName = "白色"; break;
+        case COLOR_BLACK:  colorName = "黑色"; break;
+        default:           colorName = "未知"; break;
+    }
+    
+    Logger::info("颜色校准 - %s:", colorName);
+    Logger::info("原始值: R=%d, G=%d, B=%d, C=%d", avgR, avgG, avgB, avgC);
+    Logger::info("比例值: R=%.2f, G=%.2f, B=%.2f", normR, normG, normB);
+    
+    // 提供建议的阈值设置
+    Logger::info("建议的阈值设置:");
+    Logger::info("colorThresholds[%d].minR = %.0f;", color, normR * 0.8);
+    Logger::info("colorThresholds[%d].maxR = %.0f;", color, normR * 1.2);
+    Logger::info("colorThresholds[%d].minG = %.0f;", color, normG * 0.8);
+    Logger::info("colorThresholds[%d].maxG = %.0f;", color, normG * 1.2);
+    Logger::info("colorThresholds[%d].minB = %.0f;", color, normB * 0.8);
+    Logger::info("colorThresholds[%d].maxB = %.0f;", color, normB * 1.2);
+}
+
+void ColorSensor::printRawValues() {
+    if (!initialized) {
+        Logger::error("颜色传感器未初始化");
+        return;
+    }
+    
+    update();
+    
+    // 打印原始RGB和清晰度值
+    Logger::debug("原始值: R=%d, G=%d, B=%d, C=%d", r, g, b, c);
+    
+    // 计算RGB比例
+    float normR, normG, normB;
+    calculateNormalizedRGB(r, g, b, c, &normR, &normG, &normB);
+    
+    // 打印比例值
+    Logger::debug("比例值: R=%.2f, G=%.2f, B=%.2f", normR, normG, normB);
 } 

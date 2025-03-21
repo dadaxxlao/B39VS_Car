@@ -1,3 +1,4 @@
+#ifdef TEST_MULTIPLE_JUNCTION_DETECTION
 #include <Arduino.h>
 #include <Wire.h>
 #include "../Sensor/Infrared.h"
@@ -178,3 +179,4 @@ void loop() {
   
   delay(100); // 每100ms更新一次
 } 
+#endif

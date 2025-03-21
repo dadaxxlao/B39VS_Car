@@ -1,3 +1,4 @@
+#ifdef TEST_INFRARED
 #include <Arduino.h>
 #include <Wire.h>
 #include "../Sensor/Infrared.h"
@@ -64,3 +65,4 @@ void loop() {
   
   delay(500); // 每500ms更新一次
 } 
+#endif

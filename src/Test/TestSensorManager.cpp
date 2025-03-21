@@ -1,3 +1,4 @@
+#ifdef TEST_SENSOR_MANAGER
 #include <Arduino.h>
 #include <Wire.h>
 #include "../Sensor/SensorManager.h"
@@ -105,3 +106,4 @@ void loop() {
   
   delay(1500); // 每1.5秒更新一次
 } 
+#endif

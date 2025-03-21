@@ -1,3 +1,4 @@
+#ifdef TEST_ULTRASONIC
 #include <Arduino.h>
 #include "../Sensor/Ultrasonic.h"
 #include "../Utils/Config.h"
@@ -40,3 +41,4 @@ void loop() {
   
   delay(500); // 每500ms更新一次
 } 
+#endif

@@ -1,3 +1,4 @@
+#ifdef TEST_COLOR_SENSOR
 #include <Arduino.h>
 #include <Wire.h>
 #include "../Sensor/ColorSensor.h"
@@ -78,3 +79,4 @@ void loop() {
   
   delay(1000); // 每1秒更新一次
 } 
+#endif

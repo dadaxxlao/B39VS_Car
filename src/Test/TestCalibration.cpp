@@ -1,29 +1,28 @@
+#ifdef TEST_CALIBRATION
 #include <Arduino.h>
 #include <Wire.h>
-#include "../Sensor/ColorSensor.h"
 #include "../Sensor/Infrared.h"
 #include "../Utils/Config.h"
 
-ColorSensor colorSensor;
 InfraredArray infraredSensor;
 
 // 校准状态
 enum CalibrationState {
-  SELECT_SENSOR,
-  COLOR_SENSOR,
-  IR_SENSOR,
+  WAIT_FOR_STABILIZATION,
+  CALIBRATION_INSTRUCTIONS,
+  MONITORING,
   COMPLETE
 };
 
-CalibrationState state = SELECT_SENSOR;
-ColorCode currentColorToCalibrate = COLOR_RED;
-bool samplingColor = false;
-unsigned long lastSampleTime = 0;
-int sampleCount = 0;
-const int SAMPLES_NEEDED = 10;
+CalibrationState state = WAIT_FOR_STABILIZATION;
+unsigned long startTime = 0;
+const int STABILIZATION_TIME = 20000; // 20秒稳定时间
 
-// 颜色求平均值的累计
-uint32_t sumR = 0, sumG = 0, sumB = 0, sumC = 0;
+// I2C命令常量
+const uint8_t CALIBRATION_REGISTER = 0x01;
+const uint8_t CALIBRATION_ENTER = 1;
+const uint8_t CALIBRATION_EXIT = 0;
+const uint8_t SENSOR_STATUS_REGISTER = 0x30;
 
 void setup() {
   // 初始化串口
@@ -32,19 +31,75 @@ void setup() {
     ; // 等待串口连接
   }
   
-  Serial.println("传感器校准程序");
-  Serial.println("请选择要校准的传感器:");
-  Serial.println("1 - 颜色传感器");
-  Serial.println("2 - 红外线传感器");
+  Serial.println("红外传感器校准程序 (I2C模式)");
+  Serial.println("\n红外传感器初始化和校准流程:");
+  Serial.println("1. 首先进行传感器稳定 (20秒等待)");
   
   // 初始化I2C
   Wire.begin();
   
   // 初始化传感器
-  colorSensor.begin(COLOR_SENSOR_ADDR);
-  infraredSensor.begin(INFRARED_ARRAY_ADDR);
+  if (infraredSensor.begin(INFRARED_ARRAY_ADDR)) {
+    Serial.println("红外传感器初始化成功");
+    Serial.println("开始等待传感器稳定...");
+    startTime = millis();
+    state = WAIT_FOR_STABILIZATION;
+  } else {
+    Serial.println("红外传感器初始化失败，请检查连接");
+    while (1); // 停止执行
+  }
+}
+
+// 向模块发送I2C校准命令
+void sendCalibrationCommand(bool enterCalibration) {
+  Wire.beginTransmission(INFRARED_ARRAY_ADDR);
+  Wire.write(CALIBRATION_REGISTER);
+  Wire.write(enterCalibration ? CALIBRATION_ENTER : CALIBRATION_EXIT);
+  Wire.endTransmission();
   
-  delay(1000); // 等待传感器稳定
+  if (enterCalibration) {
+    Serial.println("已发送进入校准模式命令");
+  } else {
+    Serial.println("已发送退出校准模式命令");
+  }
+}
+
+// 读取传感器状态值（8位二进制，每位代表一个传感器）
+uint8_t readSensorStatus() {
+  Wire.beginTransmission(INFRARED_ARRAY_ADDR);
+  Wire.write(SENSOR_STATUS_REGISTER);
+  Wire.endTransmission();
+  
+  Wire.requestFrom(INFRARED_ARRAY_ADDR, 1);
+  if (Wire.available()) {
+    return Wire.read();
+  }
+  return 0;
+}
+
+// 显示传感器状态的二进制和十进制表示
+void displaySensorStatus(uint8_t status) {
+  Serial.print("传感器状态: 0b");
+  for (int i = 7; i >= 0; i--) {
+    Serial.print((status >> i) & 0x01);
+  }
+  Serial.print(" (0x");
+  Serial.print(status, HEX);
+  Serial.print(", ");
+  Serial.print(status, DEC);
+  Serial.println(")");
+  
+  // 显示每个传感器的状态
+  Serial.print("传感器: ");
+  for (int i = 0; i < 8; i++) {
+    bool sensorOn = !((status >> (7-i)) & 0x01); // 注意：0表示检测到黑线
+    Serial.print("X");
+    Serial.print(i+1);
+    Serial.print(":");
+    Serial.print(sensorOn ? "■" : "□");
+    Serial.print(" ");
+  }
+  Serial.println();
 }
 
 void loop() {
@@ -53,137 +108,110 @@ void loop() {
     char input = Serial.read();
     
     switch (state) {
-      case SELECT_SENSOR:
-        if (input == '1') {
-          state = COLOR_SENSOR;
-          Serial.println("\n开始颜色传感器校准");
-          Serial.println("请将传感器放置在红色区域上，然后按 'S' 开始采样");
-          currentColorToCalibrate = COLOR_RED;
-        } else if (input == '2') {
-          state = IR_SENSOR;
-          Serial.println("\n开始红外传感器校准");
-          Serial.println("请将传感器放置在黑线上，然后按 'S' 开始采样");
+      case CALIBRATION_INSTRUCTIONS:
+        if (input == 'c' || input == 'C') {
+          // 发送进入校准命令
+          sendCalibrationCommand(true);
+          Serial.println("\n模块现在应处于校准模式。");
+          Serial.println("请按照以下步骤操作:");
+          Serial.println("1. 确保红灯常亮 (表示进入校准模式)");
+          Serial.println("2. 将8个探头对准黑线 (确保都能检测到黑线)");
+          Serial.println("3. 等待校准完成 (红灯熄灭)");
+          Serial.println("4. 按 'E' 退出校准模式");
+        } else if (input == 'e' || input == 'E') {
+          // 发送退出校准命令
+          sendCalibrationCommand(false);
+          state = MONITORING;
+          Serial.println("\n已退出校准模式，进入监控模式");
+          Serial.println("系统将持续显示传感器状态");
+          Serial.println("按 'R' 重新开始");
+        } else if (input == 'm' || input == 'M') {
+          state = MONITORING;
+          Serial.println("\n进入监控模式");
+          Serial.println("系统将持续显示传感器状态");
+          Serial.println("按 'R' 重新开始");
         }
         break;
         
-      case COLOR_SENSOR:
-        if (input == 's' || input == 'S') {
-          // 开始采样当前颜色
-          samplingColor = true;
-          sumR = sumG = sumB = sumC = 0;
-          sampleCount = 0;
-          Serial.print("开始采样");
-          Serial.print(getColorName(currentColorToCalibrate));
-          Serial.println("，请保持传感器位置稳定...");
-        }
-        break;
-        
-      case IR_SENSOR:
-        if (input == 's' || input == 'S') {
-          // 采样红外传感器数据
-          infraredSensor.update();
-          const uint16_t* values = infraredSensor.getAllSensorValues();
-          
-          Serial.println("红外传感器值:");
-          for (int i = 0; i < 8; i++) {
-            Serial.print("传感器 ");
-            Serial.print(i);
-            Serial.print(": ");
-            Serial.println(values[i]);
-          }
-          
-          Serial.println("\n请将传感器放置在白色区域上，然后按 'S' 采样");
-        } else if (input == 'c' || input == 'C') {
-          state = COMPLETE;
-          Serial.println("红外传感器校准完成");
-        }
-        break;
-        
-      case COMPLETE:
+      case MONITORING:
         if (input == 'r' || input == 'R') {
-          // 重置校准
-          state = SELECT_SENSOR;
-          Serial.println("\n请选择要校准的传感器:");
-          Serial.println("1 - 颜色传感器");
-          Serial.println("2 - 红外线传感器");
+          Serial.println("\n重新开始校准流程");
+          Serial.println("等待传感器稳定 (20秒)...");
+          startTime = millis();
+          state = WAIT_FOR_STABILIZATION;
+        }
+        break;
+        
+      default:
+        if (input == 's' || input == 'S') {
+          // 跳过等待
+          state = CALIBRATION_INSTRUCTIONS;
+          Serial.println("\n跳过等待时间");
+          showCalibrationInstructions();
         }
         break;
     }
   }
   
-  // 处理颜色采样
-  if (state == COLOR_SENSOR && samplingColor) {
-    unsigned long currentTime = millis();
-    if (currentTime - lastSampleTime > 200) { // 每200ms采样一次
-      lastSampleTime = currentTime;
-      
-      // 更新传感器数据
-      colorSensor.update();
-      
-      // 获取RGB值
-      uint16_t r, g, b, c;
-      colorSensor.getRGB(&r, &g, &b, &c);
-      
-      // 累加值
-      sumR += r;
-      sumG += g;
-      sumB += b;
-      sumC += c;
-      
-      Serial.print(".");
-      sampleCount++;
-      
-      if (sampleCount >= SAMPLES_NEEDED) {
-        // 计算平均值
-        uint16_t avgR = sumR / SAMPLES_NEEDED;
-        uint16_t avgG = sumG / SAMPLES_NEEDED;
-        uint16_t avgB = sumB / SAMPLES_NEEDED;
-        uint16_t avgC = sumC / SAMPLES_NEEDED;
-        
-        Serial.println("\n采样完成!");
-        Serial.print(getColorName(currentColorToCalibrate));
-        Serial.println("的平均值:");
-        Serial.print("R: ");
-        Serial.print(avgR);
-        Serial.print(", G: ");
-        Serial.print(avgG);
-        Serial.print(", B: ");
-        Serial.print(avgB);
-        Serial.print(", C: ");
-        Serial.println(avgC);
-        
-        // 切换到下一个颜色
-        samplingColor = false;
-        
-        if (currentColorToCalibrate < COLOR_COUNT - 1) {
-          currentColorToCalibrate = static_cast<ColorCode>(currentColorToCalibrate + 1);
-          Serial.print("\n请将传感器放置在");
-          Serial.print(getColorName(currentColorToCalibrate));
-          Serial.println("区域上，然后按 'S' 开始采样");
+  // 状态处理
+  switch (state) {
+    case WAIT_FOR_STABILIZATION:
+      {
+        unsigned long currentTime = millis();
+        if (currentTime - startTime >= STABILIZATION_TIME) {
+          state = CALIBRATION_INSTRUCTIONS;
+          showCalibrationInstructions();
         } else {
-          Serial.println("\n所有颜色校准完成!");
-          Serial.println("按 'R' 重新开始校准");
-          state = COMPLETE;
+          // 显示倒计时
+          static unsigned long lastDisplayTime = 0;
+          if (currentTime - lastDisplayTime >= 1000) { // 每秒更新一次
+            lastDisplayTime = currentTime;
+            int secondsLeft = (STABILIZATION_TIME - (currentTime - startTime)) / 1000;
+            Serial.print("等待传感器稳定: 剩余 ");
+            Serial.print(secondsLeft);
+            Serial.println(" 秒");
+          }
         }
       }
-    }
+      break;
+      
+    case MONITORING:
+      {
+        // 实时显示传感器状态
+        static unsigned long lastUpdateTime = 0;
+        unsigned long currentTime = millis();
+        if (currentTime - lastUpdateTime >= 500) { // 每500ms更新一次
+          lastUpdateTime = currentTime;
+          
+          // 更新传感器数据
+          infraredSensor.update();
+          const uint16_t* values = infraredSensor.getAllSensorValues();
+          
+          // 打印当前值为一行
+          Serial.print("传感器值: [");
+          for (int i = 0; i < 8; i++) {
+            Serial.print(values[i]);
+            if (i < 7) Serial.print(", ");
+          }
+          Serial.println("]");
+          
+          // 显示原始I2C状态值
+          uint8_t sensorStatus = readSensorStatus();
+          displaySensorStatus(sensorStatus);
+          
+          Serial.println("------------------------------");
+        }
+      }
+      break;
   }
 }
 
-// 获取颜色名称
-const char* getColorName(ColorCode color) {
-  switch (color) {
-    case COLOR_RED:
-      return "红色";
-    case COLOR_BLUE:
-      return "蓝色";
-    case COLOR_YELLOW:
-      return "黄色";
-    case COLOR_WHITE:
-      return "白色";
-    case COLOR_BLACK:
-      return "黑色";
-    default:
-      return "未知";
-  }
-} 
+void showCalibrationInstructions() {
+  Serial.println("\n传感器已稳定，可以开始校准");
+  Serial.println("按手册说明，有两种校准方式:");
+  Serial.println("1. 硬件校准: 长按模块上的key1按键，等待红灯常亮，进入校准模式");
+  Serial.println("2. 软件校准: 按 'C' 发送I2C校准命令 (地址0x12，寄存器0x01，值1)");
+  Serial.println("\n完成校准后，按 'E' 退出校准模式");
+  Serial.println("或按 'M' 直接进入监控模式，查看传感器状态");
+}
+#endif
