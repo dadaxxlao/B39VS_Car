@@ -65,7 +65,8 @@ public:
     // 设置Logger的蓝牙流
     void setupLogger() {
         if (ENABLE_BLUETOOTH && initialized && btSerial) {
-            Logger::setBtStream(btSerial);
+            Logger::setStream(COMM_BT, btSerial);
+            Logger::enableComm(COMM_BT, true);
         }
     }
     

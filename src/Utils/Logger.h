@@ -10,12 +10,22 @@
 #define LOG_LEVEL_INFO    3
 #define LOG_LEVEL_DEBUG   4
 
+// 通信类型枚举
+enum CommunicationType {
+    COMM_SERIAL, // 普通串口
+    COMM_BT,     // 蓝牙
+    COMM_ESP,    // ESP
+    COMM_COUNT   // 通信类型数量
+};
+
 // 当前日志级别
 static int currentLogLevel = LOG_LEVEL_INFO;
 
 class Logger {
 private:
-    static Stream* btStream;  // 蓝牙串口流
+    // 各种通信流
+    static Stream* commStreams[COMM_COUNT];
+    static bool commEnabled[COMM_COUNT];
 
 public:
     static void init() {
@@ -24,13 +34,36 @@ public:
             Serial.begin(115200);
             delay(100);
         }
-        btStream = nullptr;
+        
+        // 初始化通信流和状态
+        commStreams[COMM_SERIAL] = &Serial;
+        commStreams[COMM_BT] = nullptr;
+        commStreams[COMM_ESP] = nullptr;
+        
+        commEnabled[COMM_SERIAL] = true;
+        commEnabled[COMM_BT] = ENABLE_BLUETOOTH;
+        commEnabled[COMM_ESP] = ENABLE_ESP;
+        
         Serial.println(F("Logger initialized"));
     }
     
-    // 设置蓝牙串口流
+    // 设置通信流
+    static void setStream(CommunicationType type, Stream* stream) {
+        if (type >= 0 && type < COMM_COUNT) {
+            commStreams[type] = stream;
+        }
+    }
+    
+    // 设置蓝牙串口流 (兼容旧代码)
     static void setBtStream(Stream* stream) {
-        btStream = stream;
+        setStream(COMM_BT, stream);
+    }
+    
+    // 启用或禁用某种通信方式
+    static void enableComm(CommunicationType type, bool enable) {
+        if (type >= 0 && type < COMM_COUNT) {
+            commEnabled[type] = enable;
+        }
     }
     
     // 设置日志级别
@@ -52,13 +85,21 @@ public:
             va_end(args);
             
             // 输出到串口
-            Serial.print(F("[ERROR] "));
-            Serial.println(buffer);
+            if (commEnabled[COMM_SERIAL] && commStreams[COMM_SERIAL]) {
+                commStreams[COMM_SERIAL]->print(F("[ERROR] "));
+                commStreams[COMM_SERIAL]->println(buffer);
+            }
             
             // 输出到蓝牙
-            if (ENABLE_BLUETOOTH && btStream) {
-                btStream->print(F("$LOG:ERROR,"));
-                btStream->println(buffer);
+            if (commEnabled[COMM_BT] && commStreams[COMM_BT]) {
+                commStreams[COMM_BT]->print(F("$LOG:ERROR,"));
+                commStreams[COMM_BT]->println(buffer);
+            }
+            
+            // 输出到ESP
+            if (commEnabled[COMM_ESP] && commStreams[COMM_ESP]) {
+                commStreams[COMM_ESP]->print(F("$LOG:ERROR,"));
+                commStreams[COMM_ESP]->println(buffer);
             }
         }
     }
@@ -73,13 +114,21 @@ public:
             va_end(args);
             
             // 输出到串口
-            Serial.print(F("[WARN] "));
-            Serial.println(buffer);
+            if (commEnabled[COMM_SERIAL] && commStreams[COMM_SERIAL]) {
+                commStreams[COMM_SERIAL]->print(F("[WARN] "));
+                commStreams[COMM_SERIAL]->println(buffer);
+            }
             
             // 输出到蓝牙
-            if (ENABLE_BLUETOOTH && btStream) {
-                btStream->print(F("$LOG:WARN,"));
-                btStream->println(buffer);
+            if (commEnabled[COMM_BT] && commStreams[COMM_BT]) {
+                commStreams[COMM_BT]->print(F("$LOG:WARN,"));
+                commStreams[COMM_BT]->println(buffer);
+            }
+            
+            // 输出到ESP
+            if (commEnabled[COMM_ESP] && commStreams[COMM_ESP]) {
+                commStreams[COMM_ESP]->print(F("$LOG:WARN,"));
+                commStreams[COMM_ESP]->println(buffer);
             }
         }
     }
@@ -94,13 +143,21 @@ public:
             va_end(args);
             
             // 输出到串口
-            Serial.print(F("[INFO] "));
-            Serial.println(buffer);
+            if (commEnabled[COMM_SERIAL] && commStreams[COMM_SERIAL]) {
+                commStreams[COMM_SERIAL]->print(F("[INFO] "));
+                commStreams[COMM_SERIAL]->println(buffer);
+            }
             
             // 输出到蓝牙
-            if (ENABLE_BLUETOOTH && btStream) {
-                btStream->print(F("$LOG:INFO,"));
-                btStream->println(buffer);
+            if (commEnabled[COMM_BT] && commStreams[COMM_BT]) {
+                commStreams[COMM_BT]->print(F("$LOG:INFO,"));
+                commStreams[COMM_BT]->println(buffer);
+            }
+            
+            // 输出到ESP
+            if (commEnabled[COMM_ESP] && commStreams[COMM_ESP]) {
+                commStreams[COMM_ESP]->print(F("$LOG:INFO,"));
+                commStreams[COMM_ESP]->println(buffer);
             }
         }
     }
@@ -115,13 +172,21 @@ public:
             va_end(args);
             
             // 输出到串口
-            Serial.print(F("[DEBUG] "));
-            Serial.println(buffer);
+            if (commEnabled[COMM_SERIAL] && commStreams[COMM_SERIAL]) {
+                commStreams[COMM_SERIAL]->print(F("[DEBUG] "));
+                commStreams[COMM_SERIAL]->println(buffer);
+            }
             
             // 输出到蓝牙
-            if (ENABLE_BLUETOOTH && btStream) {
-                btStream->print(F("$LOG:DEBUG,"));
-                btStream->println(buffer);
+            if (commEnabled[COMM_BT] && commStreams[COMM_BT]) {
+                commStreams[COMM_BT]->print(F("$LOG:DEBUG,"));
+                commStreams[COMM_BT]->println(buffer);
+            }
+            
+            // 输出到ESP
+            if (commEnabled[COMM_ESP] && commStreams[COMM_ESP]) {
+                commStreams[COMM_ESP]->print(F("$LOG:DEBUG,"));
+                commStreams[COMM_ESP]->println(buffer);
             }
         }
     }

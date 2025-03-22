@@ -39,6 +39,11 @@
 #define BT_TX_PIN            17  // Arduino发送，连接到HM-10的RX
 #define BT_BAUD_RATE         9600
 
+// ESP32通信引脚和参数
+#define ESP_RX_PIN           18  // Arduino接收，连接到ESP32的TX
+#define ESP_TX_PIN           19  // Arduino发送，连接到ESP32的RX
+#define ESP_BAUD_RATE        115200
+
 // I2C地址
 #define INFRARED_ARRAY_ADDR  0x12
 #define COLOR_SENSOR_ADDR    0x29
@@ -104,9 +109,12 @@ enum LocateSubState {
     SELECT_TARGET    // 选择目标路口
 };
 
+// 通信模式配置
+// 设置为1启用对应的通信方式，设置为0禁用
 // 蓝牙功能配置
-// 设置为1启用蓝牙通信，设置为0禁用蓝牙通信
-// 这个配置会影响BluetoothSerial和Logger类的行为
 #define ENABLE_BLUETOOTH     0
+// ESP32通信功能配置
+#define ENABLE_ESP           1
+// 可同时启用多种通信方式
 
 #endif // CONFIG_H 
