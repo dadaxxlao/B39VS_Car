@@ -9,11 +9,23 @@
 #define MODE_RETURN_BASE     2
 
 // 引脚定义
-// 电机驱动引脚
-#define LEFT_MOTOR_PIN1      2
-#define LEFT_MOTOR_PIN2      3
-#define RIGHT_MOTOR_PIN1     4
-#define RIGHT_MOTOR_PIN2     5
+// 麦克纳姆轮电机引脚定义
+// 左前电机 (FL)
+#define MOTOR_FL_PWM         2
+#define MOTOR_FL_IN1         3
+#define MOTOR_FL_IN2         4
+// 右前电机 (FR)
+#define MOTOR_FR_PWM         10
+#define MOTOR_FR_IN1         5
+#define MOTOR_FR_IN2         6
+// 左后电机 (RL)
+#define MOTOR_RL_PWM         11
+#define MOTOR_RL_IN1         7
+#define MOTOR_RL_IN2         8
+// 右后电机 (RR)
+#define MOTOR_RR_PWM         13
+#define MOTOR_RR_IN1         14
+#define MOTOR_RR_IN2         15
 
 // RGB LED灯环引脚
 #define RGB_LED_PIN          6
@@ -36,6 +48,7 @@
 #define TURN_SPEED           150
 #define FOLLOW_SPEED         180
 #define SHARP_TURN_SPEED     200
+#define DEFAULT_SPEED        200  // 麦克纳姆轮默认移动速度
 
 // 阈值参数
 #define NO_OBJECT_THRESHOLD  50   // 超声波检测无障碍物阈值(cm)

@@ -6,13 +6,19 @@
 
 class MotionController {
 private:
-    MotorDriver leftMotor;   // 左电机
-    MotorDriver rightMotor;  // 右电机
+    MotorDriver motorFL;   // 左前轮 (FL)
+    MotorDriver motorFR;   // 右前轮 (FR)
+    MotorDriver motorRL;   // 左后轮 (RL)
+    MotorDriver motorRR;   // 右后轮 (RR)
     
-    // PID控制参数
-    float kP, kI, kD;
-    float integral;
-    float lastError;
+    // 速度系数 (0-255)
+    int speedFactor;
+    
+    // 电机补偿系数
+    float motorCompensation[4];
+    
+    // 设置单个电机状态
+    void setMotorState(MotorDriver &motor, float ratio, int motorIndex);
     
 public:
     MotionController();
@@ -20,35 +26,44 @@ public:
     // 初始化运动控制器
     void init();
     
-    // 设置PID参数
-    void setPID(float p, float i, float d);
+    // 麦克纳姆轮全向移动核心算法
+    void mecanumDrive(float vx, float vy, float omega);
     
     // 前进
-    void moveForward(int speed = FOLLOW_SPEED);
+    void moveForward(int speed = DEFAULT_SPEED);
     
     // 后退
-    void moveBackward(int speed = FOLLOW_SPEED);
+    void moveBackward(int speed = DEFAULT_SPEED);
+    
+    // 左平移
+    void lateralLeft(int speed = DEFAULT_SPEED);
+    
+    // 右平移
+    void lateralRight(int speed = DEFAULT_SPEED);
     
     // 左转
-    void turnLeft(int speed = TURN_SPEED);
+    void turnLeft(int speed = DEFAULT_SPEED);
     
     // 右转
-    void turnRight(int speed = TURN_SPEED);
+    void turnRight(int speed = DEFAULT_SPEED);
     
     // 原地左转
-    void spinLeft(int speed = TURN_SPEED);
+    void spinLeft(int speed = DEFAULT_SPEED);
     
     // 原地右转
-    void spinRight(int speed = TURN_SPEED);
+    void spinRight(int speed = DEFAULT_SPEED);
     
-    // 停止
-    void stop();
+    // 原地掉头（旋转180度）
+    void uTurn(int speed = DEFAULT_SPEED);
     
-    // 巡线控制
-    void followLine(int position);
+    // 紧急停止
+    void emergencyStop();
     
-    // U型转弯
-    void uTurn();
+    // 设置速度系数
+    void setSpeedFactor(int speed);
+    
+    // 设置电机补偿系数
+    void setMotorCompensation(float fl, float fr, float rl, float rr);
 };
 
 #endif // MOTION_CONTROLLER_H 

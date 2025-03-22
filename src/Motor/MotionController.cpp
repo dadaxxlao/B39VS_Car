@@ -1,121 +1,144 @@
 #include "MotionController.h"
 #include "../Utils/Logger.h"
 
-MotionController::MotionController() : kP(0.5), kI(0.0), kD(0.1), integral(0.0), lastError(0.0) {
+MotionController::MotionController() : speedFactor(DEFAULT_SPEED) {
+    // 设置默认的电机补偿系数
+    motorCompensation[0] = 0.85; // FL
+    motorCompensation[1] = 1.0;  // FR
+    motorCompensation[2] = 1.0;  // RL
+    motorCompensation[3] = 0.8;  // RR
 }
 
 void MotionController::init() {
-    // 初始化左右电机
-    leftMotor.init(LEFT_MOTOR_PIN1, LEFT_MOTOR_PIN2);
-    rightMotor.init(RIGHT_MOTOR_PIN1, RIGHT_MOTOR_PIN2);
+    // 初始化四个电机
+    motorFL.init(MOTOR_FL_PWM, MOTOR_FL_IN1, MOTOR_FL_IN2);
+    motorFR.init(MOTOR_FR_PWM, MOTOR_FR_IN1, MOTOR_FR_IN2);
+    motorRL.init(MOTOR_RL_PWM, MOTOR_RL_IN1, MOTOR_RL_IN2);
+    motorRR.init(MOTOR_RR_PWM, MOTOR_RR_IN1, MOTOR_RR_IN2);
     
-    // 停止电机
-    stop();
+    // 停止所有电机
+    emergencyStop();
     
-    Logger::info("运动控制器初始化完成");
+    Logger::info("麦克纳姆轮运动控制器初始化完成");
 }
 
-void MotionController::setPID(float p, float i, float d) {
-    kP = p;
-    kI = i;
-    kD = d;
-    
-    // 重置PID状态
-    integral = 0.0;
-    lastError = 0.0;
-    
-    Logger::info("设置PID参数: P=%.2f, I=%.2f, D=%.2f", p, i, d);
+void MotionController::setMotorState(MotorDriver &motor, float ratio, int motorIndex) {
+    int actualSpeed = abs(ratio) * speedFactor * motorCompensation[motorIndex];
+    bool direction = ratio > 0 ? true : false;
+    motor.setMotor(actualSpeed, direction);
+}
+
+void MotionController::mecanumDrive(float vx, float vy, float omega) {
+    // 运动学模型计算
+    float fl = +vx + vy + omega;
+    float fr = -vx + vy - omega;
+    float rl = -vx + vy + omega;
+    float rr = +vx + vy - omega;
+
+    // 归一化处理
+    float maxVal = max(max(abs(fl), abs(fr)), max(abs(rl), abs(rr)));
+    if(maxVal > 1) {
+        fl /= maxVal;
+        fr /= maxVal;
+        rl /= maxVal;
+        rr /= maxVal;
+    }
+
+    // 设置电机状态 - 与示例代码保持一致的引脚映射
+    setMotorState(motorFL, fl, 0);  // FL
+    setMotorState(motorFR, fr, 1);  // FR
+    setMotorState(motorRL, rl, 2);  // RL
+    setMotorState(motorRR, rr, 3);  // RR
 }
 
 void MotionController::moveForward(int speed) {
-    leftMotor.forward(speed);
-    rightMotor.forward(speed);
+    int originalSpeed = speedFactor;
+    speedFactor = speed;
+    mecanumDrive(0, 1.0, 0);  // +Y方向移动
+    speedFactor = originalSpeed;
 }
 
 void MotionController::moveBackward(int speed) {
-    leftMotor.backward(speed);
-    rightMotor.backward(speed);
+    int originalSpeed = speedFactor;
+    speedFactor = speed;
+    mecanumDrive(0, -1.0, 0);  // -Y方向移动
+    speedFactor = originalSpeed;
+}
+
+void MotionController::lateralLeft(int speed) {
+    int originalSpeed = speedFactor;
+    speedFactor = speed;
+    mecanumDrive(1.0, 0, 0);  // +X方向平移
+    speedFactor = originalSpeed;
+}
+
+void MotionController::lateralRight(int speed) {
+    int originalSpeed = speedFactor;
+    speedFactor = speed;
+    mecanumDrive(-1.0, 0, 0); // -X方向平移
+    speedFactor = originalSpeed;
 }
 
 void MotionController::turnLeft(int speed) {
-    // 左转弯（左电机减速，右电机保持）
-    leftMotor.forward(speed / 2);
-    rightMotor.forward(speed);
+    int originalSpeed = speedFactor;
+    speedFactor = speed;
+    mecanumDrive(0, 0.5, 0.5);  // 左前移动+左旋转
+    speedFactor = originalSpeed;
 }
 
 void MotionController::turnRight(int speed) {
-    // 右转弯（右电机减速，左电机保持）
-    leftMotor.forward(speed);
-    rightMotor.forward(speed / 2);
+    int originalSpeed = speedFactor;
+    speedFactor = speed;
+    mecanumDrive(0, 0.5, -0.5);  // 右前移动+右旋转
+    speedFactor = originalSpeed;
 }
 
 void MotionController::spinLeft(int speed) {
-    // 原地左转（左电机后退，右电机前进）
-    leftMotor.backward(speed);
-    rightMotor.forward(speed);
+    int originalSpeed = speedFactor;
+    speedFactor = speed;
+    mecanumDrive(0, 0, 1.0);  // 原地左旋转
+    speedFactor = originalSpeed;
 }
 
 void MotionController::spinRight(int speed) {
-    // 原地右转（右电机后退，左电机前进）
-    leftMotor.forward(speed);
-    rightMotor.backward(speed);
+    int originalSpeed = speedFactor;
+    speedFactor = speed;
+    mecanumDrive(0, 0, -1.0);  // 原地右旋转
+    speedFactor = originalSpeed;
 }
 
-void MotionController::stop() {
-    leftMotor.stop();
-    rightMotor.stop();
-}
-
-void MotionController::followLine(int position) {
-    // PID巡线控制算法
-    
-    // 计算误差（position范围为-100到100，0为中心）
-    float error = (float)position;
-    
-    // 计算积分项
-    integral += error;
-    
-    // 限制积分项，防止积分饱和
-    if (integral > 100.0) integral = 100.0;
-    if (integral < -100.0) integral = -100.0;
-    
-    // 计算微分项
-    float derivative = error - lastError;
-    lastError = error;
-    
-    // 计算PID输出
-    float output = kP * error + kI * integral + kD * derivative;
-    
-    // 限制输出范围
-    int speedDiff = (int)constrain(output, -MAX_SPEED, MAX_SPEED);
-    
-    // 设置电机速度
-    int baseSpeed = FOLLOW_SPEED;
-    int leftSpeed = baseSpeed - speedDiff;
-    int rightSpeed = baseSpeed + speedDiff;
-    
-    // 限制速度范围
-    leftSpeed = constrain(leftSpeed, -MAX_SPEED, MAX_SPEED);
-    rightSpeed = constrain(rightSpeed, -MAX_SPEED, MAX_SPEED);
-    
-    // 更新电机速度
-    leftMotor.setSpeed(leftSpeed);
-    rightMotor.setSpeed(rightSpeed);
-}
-
-void MotionController::uTurn() {
-    // 执行U型转弯
+void MotionController::uTurn(int speed) {
+    // 执行原地掉头（旋转180度）
     
     // 先停止
-    stop();
+    emergencyStop();
     delay(100);
     
     // 原地旋转180度
-    spinLeft(SHARP_TURN_SPEED);
+    int originalSpeed = speedFactor;
+    speedFactor = speed;
+    mecanumDrive(0, 0, 1.0);  // 原地左旋转
+    delay(1000);  // 等待足够时间完成旋转（可根据实际情况调整）
+    emergencyStop();
+    speedFactor = originalSpeed;
+}
+
+void MotionController::emergencyStop() {
+    motorFL.stopMotor();
+    motorFR.stopMotor();
+    motorRL.stopMotor();
+    motorRR.stopMotor();
+}
+
+void MotionController::setSpeedFactor(int speed) {
+    speedFactor = constrain(speed, 0, 255);
+}
+
+void MotionController::setMotorCompensation(float fl, float fr, float rl, float rr) {
+    motorCompensation[0] = fl;
+    motorCompensation[1] = fr;
+    motorCompensation[2] = rl;
+    motorCompensation[3] = rr;
     
-    // 等待足够时间完成旋转（可以使用陀螺仪或编码器进行更精确的控制）
-    delay(1000);
-    
-    // 停止
-    stop();
+    Logger::info("设置电机补偿系数: FL=%.2f, FR=%.2f, RL=%.2f, RR=%.2f", fl, fr, rl, rr);
 } 
