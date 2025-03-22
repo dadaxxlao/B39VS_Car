@@ -218,7 +218,6 @@ void StateMachine::followLine(int position) {
     const int centerPosition = 3500; // 线位于中央的位置值
     const float Kp = 0.5;  // 比例系数
     const float Kd = 0.1;  // 微分系数
-    const int baseSpeed = FOLLOW_SPEED; // 基础速度
     
     // 计算误差
     static int lastError = 0;
@@ -231,10 +230,6 @@ void StateMachine::followLine(int position) {
     
     // 约束转向量
     turnAmount = constrain(turnAmount, -100, 100);
-    
-    // 根据转向量调整左右轮速度
-    float leftSpeed = baseSpeed - turnAmount;
-    float rightSpeed = baseSpeed + turnAmount;
     
     // 发送速度指令给麦克纳姆轮运动控制器
     // 对于麦克纳姆轮，使用mecanumDrive来实现差速巡线

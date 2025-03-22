@@ -44,7 +44,7 @@ void InfraredArray::update() {
     
     delay(10); // 给设备足够时间处理请求
     
-    Wire.requestFrom(i2cAddress, 1); // 请求1个字节的数据
+    Wire.requestFrom(int(i2cAddress), int(1)); // 请求1个字节的数据
     if (Wire.available()) {
         data = Wire.read();
     }
