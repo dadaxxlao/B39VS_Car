@@ -3,11 +3,6 @@
 
 #include <Arduino.h>
 
-// 机器人模式相关常量
-#define MODE_LINE_FOLLOW     0
-#define MODE_OBJECT_FIND     1
-#define MODE_RETURN_BASE     2
-
 // 引脚定义
 // 麦克纳姆轮电机引脚定义
 // 左前电机 (FL)
@@ -38,6 +33,11 @@
 // 传感器引脚
 #define ULTRASONIC_TRIG_PIN  11
 #define ULTRASONIC_ECHO_PIN  12
+
+// 蓝牙HM-10模块引脚
+#define BT_RX_PIN            16  // Arduino接收，连接到HM-10的TX
+#define BT_TX_PIN            17  // Arduino发送，连接到HM-10的RX
+#define BT_BAUD_RATE         9600
 
 // I2C地址
 #define INFRARED_ARRAY_ADDR  0x12
@@ -103,5 +103,8 @@ enum LocateSubState {
     COUNT_JUNCTIONS, // 统计经过的路口
     SELECT_TARGET    // 选择目标路口
 };
+
+// 启用蓝牙通信
+#define ENABLE_BLUETOOTH     0
 
 #endif // CONFIG_H 
