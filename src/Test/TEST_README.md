@@ -187,11 +187,11 @@
 
 ## 如何运行测试
 
-1. 在PlatformIO中，修改platformio.ini文件中的`src_filter`参数，选择要测试的程序
+1. 在PlatformIO中，修改platformio.ini文件中的`build_flags`参数，选择要测试的程序
    ```
-   src_filter = +<Test/TestUltrasonic.cpp> -<main.cpp>
+   build_flags = -D TEST_COLOR_CALIBRATION 
    ```
-
+共有：TEST_CALIBRATION、TEST_COLOR_CALIBRATION、TEST_COLOR_HSV、TEST_COLOR_SENSOR、TEST_INFRARED、TEST_JUNCTION_FOLLOWING、TEST_LINE_FOLLOWING、TEST_MECANUM_MOTION、TEST_MULTIPLE_JUNCTION_DETECTION、TEST_SENSOR_MANAGER、TEST_ULTRASONIC
 2. 或者使用Arduino IDE时，打开相应测试文件并上传到开发板
 
 3. 对于大多数测试，上传完成后打开串口监视器（波特率：9600）观察输出
