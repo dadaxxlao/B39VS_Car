@@ -37,7 +37,7 @@ void StateMachine::transitionTo(SystemState newState) {
     // 根据需要在状态转换时执行特定操作
     if (currentState == OBJECT_FIND && newState == OBJECT_GRAB) {
         // 进入抓取状态前，停止运动
-        motionController->stop();
+        motionController->emergencyStop();
     } else if (newState == OBJECT_LOCATE) {
         // 进入定位状态时，初始化子状态和路口计数器
         transitionLocateSubState(TURN_AROUND);
@@ -111,7 +111,7 @@ void StateMachine::executeJunctionAction(int action) {
             performUTurn();
             break;
         case ACTION_STOP:
-            motionController->stop();
+            motionController->emergencyStop();
             break;
         case ACTION_GRAB:
             roboticArm->grab();
@@ -127,7 +127,7 @@ void StateMachine::executeJunctionAction(int action) {
 
 void StateMachine::performUTurn() {
     Logger::info("执行掉头动作");
-    motionController->stop();
+    motionController->emergencyStop();
     delay(200);
     
     // 执行掉头动作
@@ -139,7 +139,7 @@ void StateMachine::performUTurn() {
         delay(10);
     }
     
-    motionController->stop();
+    motionController->emergencyStop();
     delay(200);
 }
 
@@ -208,13 +208,50 @@ void StateMachine::handleObjectFind() {
     // 5. 如果是正常巡线，按照PID控制线位置
     if (junction == NO_JUNCTION) {
         int position = sensorManager->getLinePosition();
-        motionController->followLine(position);
+        followLine(position);
     }
+}
+
+// 实现巡线函数
+void StateMachine::followLine(int position) {
+    // 基本参数
+    const int centerPosition = 3500; // 线位于中央的位置值
+    const float Kp = 0.5;  // 比例系数
+    const float Kd = 0.1;  // 微分系数
+    const int baseSpeed = FOLLOW_SPEED; // 基础速度
+    
+    // 计算误差
+    static int lastError = 0;
+    int error = position - centerPosition;
+    int errorChange = error - lastError;
+    lastError = error;
+    
+    // PID计算转向量
+    float turnAmount = Kp * error + Kd * errorChange;
+    
+    // 约束转向量
+    turnAmount = constrain(turnAmount, -100, 100);
+    
+    // 根据转向量调整左右轮速度
+    float leftSpeed = baseSpeed - turnAmount;
+    float rightSpeed = baseSpeed + turnAmount;
+    
+    // 发送速度指令给麦克纳姆轮运动控制器
+    // 对于麦克纳姆轮，使用mecanumDrive来实现差速巡线
+    // 转换为mecanumDrive的参数：前进+旋转
+    float forwardSpeed = 0.8;  // 前进速度分量
+    float rotationSpeed = turnAmount / 150.0;  // 旋转分量，归一化到-1.0到1.0
+    
+    // 限制旋转分量范围
+    rotationSpeed = constrain(rotationSpeed, -0.8, 0.8);
+    
+    // 使用运动控制器的mecanumDrive直接控制
+    motionController->mecanumDrive(0, forwardSpeed, rotationSpeed);
 }
 
 void StateMachine::handleObjectGrab() {
     // 抓取物块状态
-    motionController->stop();
+    motionController->emergencyStop();
     
     // 获取超声波距离
     float distance = sensorManager->getUltrasonicDistance();
@@ -228,7 +265,7 @@ void StateMachine::handleObjectGrab() {
         motionController->moveBackward(FOLLOW_SPEED / 2);
     } else {
         // 距离合适，停止并抓取
-        motionController->stop();
+        motionController->emergencyStop();
         
         // 执行抓取动作
         roboticArm->grab();
@@ -291,7 +328,7 @@ void StateMachine::handleObjectLocate() {
                 } else if (junction == NO_JUNCTION) {
                     // 正常巡线
                     int position = sensorManager->getLinePosition();
-                    motionController->followLine(position);
+                    followLine(position);
                     lastJunction = NO_JUNCTION;
                 }
             }
@@ -317,7 +354,7 @@ void StateMachine::handleObjectLocate() {
 
 void StateMachine::handleObjectPlacing() {
     // 放置物块状态
-    motionController->stop();
+    motionController->emergencyStop();
     
     // 放置物块
     roboticArm->release();
@@ -357,7 +394,7 @@ void StateMachine::handleReturnBase() {
     
     if (allTriggered) {
         // 所有传感器都检测到线，说明到达基地
-        motionController->stop();
+        motionController->emergencyStop();
         transitionTo(END);
         return;
     }
@@ -369,7 +406,7 @@ void StateMachine::handleReturnBase() {
 
 void StateMachine::handleEnd() {
     // 任务结束状态
-    motionController->stop();
+    motionController->emergencyStop();
     Logger::info("任务完成");
     
     // 可以添加一些结束动作，如LED闪烁等
@@ -380,7 +417,7 @@ void StateMachine::handleEnd() {
 
 void StateMachine::handleErrorState() {
     // 错误状态处理
-    motionController->stop();
+    motionController->emergencyStop();
     
     // 这里可以添加一些错误指示，如LED闪烁等
     
