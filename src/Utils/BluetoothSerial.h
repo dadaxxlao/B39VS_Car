@@ -37,6 +37,10 @@ public:
     
     // 初始化蓝牙串口
     bool begin(int rxPin, int txPin, long baudRate = 9600) {
+        if (!ENABLE_BLUETOOTH) {
+            return false;
+        }
+        
         btSerial = new SoftwareSerial(rxPin, txPin);
         btSerial->begin(baudRate);
         
@@ -50,44 +54,54 @@ public:
                 btSerial->read();
             }
             initialized = true;
+            
+            // 如果初始化成功，设置Logger的蓝牙流
+            setupLogger();
         }
         
         return initialized;
     }
     
+    // 设置Logger的蓝牙流
+    void setupLogger() {
+        if (ENABLE_BLUETOOTH && initialized && btSerial) {
+            Logger::setBtStream(btSerial);
+        }
+    }
+    
     // 检查是否初始化
     bool isInitialized() const {
-        return initialized;
+        return ENABLE_BLUETOOTH && initialized;
     }
     
     // 检查是否有可用数据
     bool available() {
-        return btSerial && btSerial->available();
+        return ENABLE_BLUETOOTH && btSerial && btSerial->available();
     }
     
     // 读取一个字节
     int read() {
-        return btSerial ? btSerial->read() : -1;
+        return (ENABLE_BLUETOOTH && btSerial) ? btSerial->read() : -1;
     }
     
     // 向蓝牙发送数据
     size_t write(uint8_t data) {
-        return btSerial ? btSerial->write(data) : 0;
+        return (ENABLE_BLUETOOTH && btSerial) ? btSerial->write(data) : 0;
     }
     
     // 向蓝牙发送字符串
     size_t print(const char* str) {
-        return btSerial ? btSerial->print(str) : 0;
+        return (ENABLE_BLUETOOTH && btSerial) ? btSerial->print(str) : 0;
     }
     
     // 向蓝牙发送字符串并换行
     size_t println(const char* str) {
-        return btSerial ? btSerial->println(str) : 0;
+        return (ENABLE_BLUETOOTH && btSerial) ? btSerial->println(str) : 0;
     }
     
     // 格式化并发送字符串
     size_t printf(const char* format, ...) {
-        if (!btSerial) return 0;
+        if (!ENABLE_BLUETOOTH || !btSerial) return 0;
         
         char tempBuffer[128];
         va_list args;
@@ -100,14 +114,14 @@ public:
     
     // 读取一行数据（直到换行符）
     String readLine() {
-        if (!btSerial) return "";
+        if (!ENABLE_BLUETOOTH || !btSerial) return "";
         
         return btSerial->readStringUntil('\n');
     }
     
     // 发送命令响应
     void sendResponse(const char* command, bool success) {
-        if (!btSerial) return;
+        if (!ENABLE_BLUETOOTH || !btSerial) return;
         
         btSerial->print(MSG_PREFIX_RESPONSE);
         btSerial->print(command);
@@ -117,7 +131,7 @@ public:
     
     // 发送传感器数据
     void sendSensorData(const uint16_t* sensorValues, int position) {
-        if (!btSerial) return;
+        if (!ENABLE_BLUETOOTH || !btSerial) return;
         
         btSerial->print(MSG_PREFIX_DATA);
         btSerial->print("LINE,");
@@ -133,7 +147,7 @@ public:
     
     // 发送日志消息
     void sendLog(int level, const char* message) {
-        if (!btSerial) return;
+        if (!ENABLE_BLUETOOTH || !btSerial) return;
         
         const char* levelStr;
         switch (level) {
@@ -162,7 +176,7 @@ public:
     
     // 处理接收到的数据
     bool processReceivedData() {
-        if (!btSerial || !btSerial->available()) {
+        if (!ENABLE_BLUETOOTH || !btSerial || !btSerial->available()) {
             return false;
         }
         
@@ -192,7 +206,9 @@ public:
     
     // 清空接收缓冲区
     void clearBuffer() {
-        while (btSerial && btSerial->available()) {
+        if (!ENABLE_BLUETOOTH || !btSerial) return;
+        
+        while (btSerial->available()) {
             btSerial->read();
         }
         bufferIndex = 0;

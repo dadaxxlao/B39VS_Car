@@ -16,7 +16,6 @@ static int currentLogLevel = LOG_LEVEL_INFO;
 class Logger {
 private:
     static Stream* btStream;  // 蓝牙串口流
-    static bool useBluetooth; // 是否使用蓝牙输出
 
 public:
     static void init() {
@@ -25,7 +24,6 @@ public:
             Serial.begin(115200);
             delay(100);
         }
-        useBluetooth = false;
         btStream = nullptr;
         Serial.println(F("Logger initialized"));
     }
@@ -33,12 +31,6 @@ public:
     // 设置蓝牙串口流
     static void setBtStream(Stream* stream) {
         btStream = stream;
-        useBluetooth = (stream != nullptr);
-    }
-    
-    // 启用或禁用蓝牙输出
-    static void enableBluetooth(bool enable) {
-        useBluetooth = enable && (btStream != nullptr);
     }
     
     // 设置日志级别
@@ -64,7 +56,7 @@ public:
             Serial.println(buffer);
             
             // 输出到蓝牙
-            if (useBluetooth && btStream) {
+            if (ENABLE_BLUETOOTH && btStream) {
                 btStream->print(F("$LOG:ERROR,"));
                 btStream->println(buffer);
             }
@@ -85,7 +77,7 @@ public:
             Serial.println(buffer);
             
             // 输出到蓝牙
-            if (useBluetooth && btStream) {
+            if (ENABLE_BLUETOOTH && btStream) {
                 btStream->print(F("$LOG:WARN,"));
                 btStream->println(buffer);
             }
@@ -106,7 +98,7 @@ public:
             Serial.println(buffer);
             
             // 输出到蓝牙
-            if (useBluetooth && btStream) {
+            if (ENABLE_BLUETOOTH && btStream) {
                 btStream->print(F("$LOG:INFO,"));
                 btStream->println(buffer);
             }
@@ -127,7 +119,7 @@ public:
             Serial.println(buffer);
             
             // 输出到蓝牙
-            if (useBluetooth && btStream) {
+            if (ENABLE_BLUETOOTH && btStream) {
                 btStream->print(F("$LOG:DEBUG,"));
                 btStream->println(buffer);
             }
@@ -135,8 +127,7 @@ public:
     }
 };
 
-// 初始化静态成员
-Stream* Logger::btStream = nullptr;
-bool Logger::useBluetooth = false;
+// 注意：静态成员变量的定义已移到Logger.cpp文件中
+// Stream* Logger::btStream = nullptr;
 
 #endif // LOGGER_H 

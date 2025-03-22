@@ -104,7 +104,9 @@ enum LocateSubState {
     SELECT_TARGET    // 选择目标路口
 };
 
-// 启用蓝牙通信
+// 蓝牙功能配置
+// 设置为1启用蓝牙通信，设置为0禁用蓝牙通信
+// 这个配置会影响BluetoothSerial和Logger类的行为
 #define ENABLE_BLUETOOTH     0
 
 #endif // CONFIG_H 
