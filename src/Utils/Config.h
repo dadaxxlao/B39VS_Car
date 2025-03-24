@@ -50,10 +50,10 @@
 
 // 运动参数
 #define MAX_SPEED            255
-#define TURN_SPEED           150
-#define FOLLOW_SPEED         180
+#define TURN_SPEED           100
+#define FOLLOW_SPEED         100
 #define SHARP_TURN_SPEED     200
-#define DEFAULT_SPEED        200  // 麦克纳姆轮默认移动速度
+#define DEFAULT_SPEED        100  // 麦克纳姆轮默认移动速度
 
 // 阈值参数
 #define NO_OBJECT_THRESHOLD  50   // 超声波检测无障碍物阈值(cm)

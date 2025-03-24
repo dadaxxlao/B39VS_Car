@@ -3,14 +3,19 @@
 #include <Wire.h>
 #include "../Motor/MotionController.h"
 #include "../Sensor/Infrared.h"
-#include "../Control/LineFollower.h"
 #include "../Utils/Config.h"
 #include "../Utils/Logger.h"
 
 // 创建运动控制器和红外传感器实例
 MotionController motionController;
 InfraredArray infraredSensor;
-LineFollower* lineFollower; // 使用指针，因为需要在setup中初始化
+
+// PID控制参数
+float Kp = 1.3;  // 比例系数
+float Ki = 0.0;  // 积分系数
+float Kd = 1.0;  // 微分系数
+int lastError = 0; // 上一次误差
+int integral = 0;  // 积分项
 
 // 测试配置
 bool testRunning = true;
@@ -20,6 +25,109 @@ bool autoMode = true;
 // 串口命令处理
 String receivedCommand = "";
 bool newCommandReceived = false;
+
+// 线丢失处理参数
+unsigned long lineLastDetectedTime = 0;  // 上次检测到线的时间
+unsigned long maxLineLostTime = 2000;    // 最长允许丢线的时间（毫秒）
+float lastForwardSpeed = 0.3;            // 上次前进速度
+float lastTurnAmount = 0.0;              // 上次转向量
+
+// 更新全局速度控制参数
+int baseSpeed = FOLLOW_SPEED;  // 基础速度值，默认使用Config.h中的DEFAULT_SPEED
+
+// 实现基本巡线函数
+void followLine() {
+  // 更新传感器数据
+  infraredSensor.update();
+  
+  // 获取线位置 (-100 到 100)
+  int position = infraredSensor.getLinePosition();
+  
+  // 检测是否有线
+  bool lineDetected = infraredSensor.isLineDetected();
+  
+  // 当前时间
+  unsigned long currentTime = millis();
+  
+  if (!lineDetected) {
+    // 如果没有检测到线
+    if (lineLastDetectedTime == 0) {
+      // 首次丢失线，记录时间
+      lineLastDetectedTime = currentTime;
+      
+      // 使用最后的控制量继续行驶
+      Logger::info("暂时未检测到线，继续按最后方向行驶");
+      // 使用高级运动控制函数，这些函数内部会设置speedFactor
+      if (abs(lastTurnAmount) > 0.2) {
+        // 根据转向量的符号决定转向方向，修正逻辑
+        if (lastTurnAmount > 0) {
+          motionController.turnLeft(baseSpeed);  // 上次偏右，所以左转
+        } else {
+          motionController.turnRight(baseSpeed); // 上次偏左，所以右转
+        }
+      } else {
+        motionController.moveForward(baseSpeed);
+      }
+      return;
+    } else if (currentTime - lineLastDetectedTime > maxLineLostTime) {
+      // 超过最长允许丢线时间，停车
+      motionController.emergencyStop();
+      Logger::info("长时间(%d毫秒)未检测到线，已停止", maxLineLostTime);
+      return;
+    } else {
+      // 在允许的丢线时间内，继续按最后方向行驶
+      // 使用高级运动控制函数，这些函数内部会设置speedFactor
+      if (abs(lastTurnAmount) > 0.2) {
+        // 根据转向量的符号决定转向方向，修正逻辑
+        if (lastTurnAmount > 0) {
+          motionController.turnLeft(baseSpeed);  // 上次偏右，所以左转
+        } else {
+          motionController.turnRight(baseSpeed); // 上次偏左，所以右转
+        }
+      } else {
+        motionController.moveForward(baseSpeed);
+      }
+      return;
+    }
+  } else {
+    // 检测到线，重置丢线时间
+    lineLastDetectedTime = 0;
+  }
+  
+  // 计算误差 (position就是误差，因为目标位置是0)
+  int error = position;
+  integral = integral + error;
+  integral = constrain(integral, -100, 100);  // 防止积分饱和
+  int errorChange = error - lastError;
+  lastError = error;
+  
+  // PID计算转向量
+  float turnAmount = (Kp * error + Ki * integral + Kd * errorChange) / 100.0;
+  
+  // 限制转向量范围
+  turnAmount = constrain(turnAmount, -0.8, 0.8);
+  
+  // 记录当前控制量，以便在丢线时使用
+  lastTurnAmount = turnAmount;
+  lastForwardSpeed = 0.3;  // 前进速度分量，值较小以确保安全
+  
+  // 根据转向量的大小选择不同的控制方式
+  if (abs(turnAmount) < 0.2) {
+    // 小转向量，直接前进
+    motionController.moveForward(baseSpeed);
+    Logger::info("线位置: %d, 误差较小，直行", position);
+  } else if (turnAmount > 0) {
+    // 线偏右，需要左转修正
+    int turnSpeed = map(abs(turnAmount * 100), 20, 80, baseSpeed/2, baseSpeed);
+    motionController.turnLeft(turnSpeed);
+    Logger::info("线位置: %d (偏右), 左转修正, 转向: %.2f", position, turnAmount);
+  } else {
+    // 线偏左，需要右转修正
+    int turnSpeed = map(abs(turnAmount * 100), 20, 80, baseSpeed/2, baseSpeed);
+    motionController.turnRight(turnSpeed);
+    Logger::info("线位置: %d (偏左), 右转修正, 转向: %.2f", position, turnAmount);
+  }
+}
 
 // 显示传感器状态
 void displaySensorStatus() {
@@ -54,13 +162,12 @@ void displaySensorStatus() {
   Serial.println(infraredSensor.isLineDetected() ? "检测到线" : "未检测到线");
   
   // 如果当前处于丢线状态，显示丢线时间
-  unsigned long lineLastDetectedTime = 0; // 这只是为了显示，实际值在LineFollower类内部
   if (lineLastDetectedTime > 0) {
     unsigned long lostTime = millis() - lineLastDetectedTime;
     Serial.print("丢线时间: ");
     Serial.print(lostTime);
     Serial.print("/");
-    Serial.print(lineFollower->getMaxLineLostTime());
+    Serial.print(maxLineLostTime);
     Serial.println("ms");
   }
 }
@@ -72,7 +179,7 @@ void processCommand(String command) {
   if (command == "start" || command == "s") {
     testRunning = true;
     autoMode = true;
-    lineFollower->reset(); // 重置巡线状态
+    lineLastDetectedTime = 0; // 重置丢线时间
     Serial.println("巡线测试已启动(自动模式)");
   }
   else if (command == "stop" || command == "x") {
@@ -83,52 +190,52 @@ void processCommand(String command) {
   else if (command.startsWith("kp")) {
     float value = command.substring(3).toFloat();
     if (value >= 0) {
-      lineFollower->setPIDParams(value, lineFollower->getKi(), lineFollower->getKd());
+      Kp = value;
       Serial.print("设置Kp = ");
-      Serial.println(value);
+      Serial.println(Kp);
     }
   }
   else if (command.startsWith("ki")) {
     float value = command.substring(3).toFloat();
     if (value >= 0) {
-      lineFollower->setPIDParams(lineFollower->getKp(), value, lineFollower->getKd());
+      Ki = value;
       Serial.print("设置Ki = ");
-      Serial.println(value);
+      Serial.println(Ki);
     }
   }
   else if (command.startsWith("kd")) {
     float value = command.substring(3).toFloat();
     if (value >= 0) {
-      lineFollower->setPIDParams(lineFollower->getKp(), lineFollower->getKi(), value);
+      Kd = value;
       Serial.print("设置Kd = ");
-      Serial.println(value);
+      Serial.println(Kd);
     }
   }
   else if (command.startsWith("lost")) {
     // 设置最长允许丢线时间
     int value = command.substring(5).toInt();
     if (value >= 0) {
-      lineFollower->setLineLostParams(value);
+      maxLineLostTime = value;
       Serial.print("设置最长允许丢线时间 = ");
-      Serial.print(value);
+      Serial.print(maxLineLostTime);
       Serial.println("ms");
     }
   }
   else if (command == "status") {
     displaySensorStatus();
     Serial.print("当前PID参数: Kp=");
-    Serial.print(lineFollower->getKp());
+    Serial.print(Kp);
     Serial.print(" Ki=");
-    Serial.print(lineFollower->getKi());
+    Serial.print(Ki);
     Serial.print(" Kd=");
-    Serial.println(lineFollower->getKd());
+    Serial.println(Kd);
     Serial.print("最长允许丢线时间: ");
-    Serial.print(lineFollower->getMaxLineLostTime());
+    Serial.print(maxLineLostTime);
     Serial.println("ms");
     Serial.print("转向增益: 左转=");
-    Serial.print(lineFollower->getLeftTurnGain());
+    Serial.print(lastTurnAmount);
     Serial.print(" 右转=");
-    Serial.println(lineFollower->getRightTurnGain());
+    Serial.println(lastTurnAmount);
   }
   else if (command == "manual" || command == "m") {
     autoMode = false;
@@ -142,11 +249,14 @@ void processCommand(String command) {
   }
   else if (command == "reset") {
     // 重置PID参数到默认值
-    lineFollower->setPIDParams(1.0, 0.0, 1.0);
-    lineFollower->setLineLostParams(2000);
-    lineFollower->setBaseSpeed(FOLLOW_SPEED);
-    lineFollower->setTurnGain(1.0, 1.0); // 默认左转增益1.2，右转增益1.0
-    lineFollower->reset();
+    Kp = 1.5;
+    Ki = 0.0;
+    Kd = 1.0;
+    integral = 0;
+    lastError = 0;
+    maxLineLostTime = 1000;
+    lineLastDetectedTime = 0;
+    baseSpeed = DEFAULT_SPEED;
     Serial.println("已重置所有参数到默认值");
   }
   else if (command == "help") {
@@ -265,16 +375,16 @@ void processCommand(String command) {
     // 设置基础速度
     int value = command.substring(6).toInt();
     if (value > 0 && value <= 255) {
-      lineFollower->setBaseSpeed(value);
+      baseSpeed = value;
       Serial.print("设置基础速度 = ");
-      Serial.println(value);
+      Serial.println(baseSpeed);
     }
   }
   else if (command.startsWith("leftgain")) {
     // 设置左转增益
     float value = command.substring(9).toFloat();
     if (value > 0) {
-      lineFollower->setTurnGain(value, lineFollower->getRightTurnGain());
+      motionController.setTurnGain(value, motionController.getRightTurnGain());
       Serial.print("设置左转增益 = ");
       Serial.println(value);
     }
@@ -283,7 +393,7 @@ void processCommand(String command) {
     // 设置右转增益
     float value = command.substring(10).toFloat();
     if (value > 0) {
-      lineFollower->setTurnGain(lineFollower->getLeftTurnGain(), value);
+      motionController.setTurnGain(motionController.getLeftTurnGain(), value);
       Serial.print("设置右转增益 = ");
       Serial.println(value);
     }
@@ -297,7 +407,6 @@ void setup() {
     ; // 等待串口连接
   }
   
-  // 初始化Logger
   Logger::init();
   Logger::setLogLevel(LOG_LEVEL_DEBUG);
   
@@ -319,11 +428,6 @@ void setup() {
   // 初始化运动控制器
   motionController.init();
   Serial.println("运动控制器初始化成功");
-  
-  // 创建并初始化巡线控制器
-  lineFollower = new LineFollower(infraredSensor, motionController);
-  lineFollower->init();
-  Serial.println("巡线控制器初始化成功");
   
   // 等待传感器稳定
   delay(1000);
@@ -357,10 +461,9 @@ void loop() {
     
     // 自动模式下执行巡线
     if (autoMode) {
-      // 使用LineFollower类的update方法
-      lineFollower->update();
+      followLine();
       
-      // 每100毫秒更新一次状态
+      // 每1秒更新一次状态
       if (currentTime - lastUpdateTime > 100) {
         displaySensorStatus();
         lastUpdateTime = currentTime;

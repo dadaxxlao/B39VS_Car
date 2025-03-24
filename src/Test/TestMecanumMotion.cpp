@@ -12,10 +12,10 @@
 // #define TEST_U_TURN            // 测试原地掉头
 // #define TEST_LATERAL_LEFT      // 测试左平移
 // #define TEST_LATERAL_RIGHT     // 测试右平移
-#define TEST_AUTO_SEQUENCE      // 测试自动序列（默认）
+// #define TEST_AUTO_SEQUENCE      // 测试自动序列（默认）
 
 // 转向角度校准测试
-// #define TEST_LEFT_TURN_90      // 测试左转90度校准
+ #define TEST_LEFT_TURN_90      // 测试左转90度校准
 // #define TEST_RIGHT_TURN_90     // 测试右转90度校准
 // #define TEST_U_TURN_180        // 测试原地掉头180度校准
 
@@ -36,21 +36,23 @@ enum TestAction {
 // 当前测试状态
 TestAction currentTest = TEST_STOP;
 unsigned long actionStartTime = 0;
-int testSpeed = 150; // 测试速度
+int testSpeed = 100; // 测试速度
 
 // 测试时间配置（毫秒）
 const unsigned long FORWARD_TIME = 2000;   // 前进时间
-const unsigned long TURN_TIME = 1500;      // 转弯时间
+const unsigned long TURN_TIME = 950;      // 转弯时间
 const unsigned long U_TURN_TIME = 1800;    // 掉头时间
 const unsigned long LATERAL_TIME = 2000;   // 平移时间
 const unsigned long STOP_TIME = 1000;      // 停止时间
 const unsigned long COMPLETE_CYCLE = 15000; // 完成一个周期的时间
 const unsigned long STARTUP_DELAY = 3000;  // 启动前的延迟（给予放置小车的时间）
 
+// 90: 100 950ms
+// 180: 100 2000ms
 // 各种转向角度对应的默认时间参数（可通过测试调整）
-unsigned long LEFT_TURN_90_TIME = 800;    // 左转90度所需时间（毫秒）
-unsigned long RIGHT_TURN_90_TIME = 800;   // 右转90度所需时间（毫秒）
-unsigned long U_TURN_180_TIME = 1600;     // 原地掉头180度所需时间（毫秒）
+unsigned long LEFT_TURN_90_TIME = 950;    // 左转90度所需时间（毫秒）
+unsigned long RIGHT_TURN_90_TIME = 950;   // 右转90度所需时间（毫秒）
+unsigned long U_TURN_180_TIME = 1900;     // 原地掉头180度所需时间（毫秒）
 
 // LED指示灯引脚（如果有）
 const int STATUS_LED_PIN = LED_BUILTIN; // 使用内置LED或其他可用引脚
@@ -358,6 +360,9 @@ void runLeftTurn90Test() {
       if (millis() - testStartTime >= LEFT_TURN_90_TIME) {
         // 停止转向
         motionCtrl.emergencyStop();
+        // motionCtrl.moveForward(testSpeed);
+        // delay(500);
+        // motionCtrl.emergencyStop();
         
         Serial.println("转向完成，请检查是否正好转过90度？");
         Serial.println("输入 '+' 增加时间，输入 '-' 减少时间，输入 's' 保存当前值，输入 'r' 重新测试");
@@ -448,6 +453,10 @@ void runRightTurn90Test() {
       if (millis() - testStartTime >= RIGHT_TURN_90_TIME) {
         // 停止转向
         motionCtrl.emergencyStop();
+
+        // motionCtrl.moveForward(testSpeed);
+        // delay(200);
+        // motionCtrl.emergencyStop();
         
         Serial.println("转向完成，请检查是否正好转过90度？");
         Serial.println("输入 '+' 增加时间，输入 '-' 减少时间，输入 's' 保存当前值，输入 'r' 重新测试");

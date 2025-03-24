@@ -77,9 +77,9 @@ int InfraredArray::getLinePosition() {
     int weightedSum = 0;
     
     for (int i = 0; i < 8; i++) {
-        // 对于数字量传感器，检测到黑线时值为1
-        // 未检测到黑线时值为0
-        if (sensorValues[i] == 1) {
+        // 对于数字量传感器，检测到黑线时值为0（而不是1）
+        // 未检测到黑线时值为1
+        if (sensorValues[i] == 0) {
             sum += 1;
             // 将传感器位置映射到-100到100的范围
             // 0号传感器在最左边(-100)，7号传感器在最右边(+100)
@@ -111,7 +111,7 @@ const uint16_t* InfraredArray::getAllSensorValues() const {
 bool InfraredArray::isLineDetected() {
     // 检查是否有任何传感器检测到线
     for (int i = 0; i < 8; i++) {
-        if (sensorValues[i] == 1) {
+        if (sensorValues[i] == 0) {
             return true;
         }
     }

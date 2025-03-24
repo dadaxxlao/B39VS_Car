@@ -3,10 +3,10 @@
 
 MotionController::MotionController() : speedFactor(DEFAULT_SPEED) {
     // 设置默认的电机补偿系数
-    motorCompensation[0] = 0.85; // FL
+    motorCompensation[0] = 1.0;  // FL
     motorCompensation[1] = 1.0;  // FR
     motorCompensation[2] = 1.0;  // RL
-    motorCompensation[3] = 0.8;  // RR
+    motorCompensation[3] = 1.0;  // RR
 }
 
 void MotionController::init() {
@@ -82,28 +82,28 @@ void MotionController::lateralRight(int speed) {
 void MotionController::turnLeft(int speed) {
     int originalSpeed = speedFactor;
     speedFactor = speed;
-    mecanumDrive(0, 0.5, 0.5);  // 左前移动+左旋转
+    mecanumDrive(0, 0.7, - 0.3);  // 左前移动+左旋转
     speedFactor = originalSpeed;
 }
 
 void MotionController::turnRight(int speed) {
     int originalSpeed = speedFactor;
     speedFactor = speed;
-    mecanumDrive(0, 0.5, -0.5);  // 右前移动+右旋转
+    mecanumDrive(0, 0.7, 0.3);  // 右前移动+右旋转
     speedFactor = originalSpeed;
 }
 
 void MotionController::spinLeft(int speed) {
     int originalSpeed = speedFactor;
     speedFactor = speed;
-    mecanumDrive(0, 0, 1.0);  // 原地左旋转
+    mecanumDrive(0, 0, -1.0);  // 原地左旋转
     speedFactor = originalSpeed;
 }
 
 void MotionController::spinRight(int speed) {
     int originalSpeed = speedFactor;
     speedFactor = speed;
-    mecanumDrive(0, 0, -1.0);  // 原地右旋转
+    mecanumDrive(0, 0, 1.0);  // 原地右旋转
     speedFactor = originalSpeed;
 }
 

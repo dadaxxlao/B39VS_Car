@@ -52,9 +52,9 @@ void loop() {
   Serial.print("线位置: ");
   Serial.print(position);
   Serial.print(" (");
-  if (position < -50) {
+  if (position < -40) {
     Serial.println("偏左)");
-  } else if (position > 50) {
+  } else if (position > 40) {
     Serial.println("偏右)");
   } else {
     Serial.println("居中)");

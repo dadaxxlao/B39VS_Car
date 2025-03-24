@@ -48,13 +48,13 @@ public:
     void turnRight(int speed = DEFAULT_SPEED);
     
     // 原地左转
-    void spinLeft(int speed = DEFAULT_SPEED);
+    void spinLeft(int speed = TURN_SPEED);
     
     // 原地右转
-    void spinRight(int speed = DEFAULT_SPEED);
+    void spinRight(int speed = TURN_SPEED);
     
     // 原地掉头（旋转180度）
-    void uTurn(int speed = DEFAULT_SPEED);
+    void uTurn(int speed = TURN_SPEED);
     
     // 紧急停止
     void emergencyStop();

@@ -5,7 +5,7 @@
 #include "../Utils/Config.h"
 
 InfraredArray infraredSensor;
-
+void showCalibrationInstructions();
 // 校准状态
 enum CalibrationState {
   WAIT_FOR_STABILIZATION,

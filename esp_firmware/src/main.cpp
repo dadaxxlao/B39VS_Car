@@ -19,8 +19,8 @@
 #define MSG_TERMINATOR '#'       // 消息结束标记
 
 // WiFi配置
-const char* WIFI_SSID = "Tenda_56A250";     // 修改为您的WiFi名称
-const char* WIFI_PASSWORD = "feng1111"; // 修改为您的WiFi密码
+const char* WIFI_SSID = "S23";     // 修改为您的WiFi名称
+const char* WIFI_PASSWORD = "12345678"; // 修改为您的WiFi密码
 const char* HOSTNAME = "b39vs-car";         // 主机名
 const char* AP_SSID = "B39VS_Car";          // AP模式SSID
 const char* AP_PASSWORD = "12345678";       // AP模式密码
