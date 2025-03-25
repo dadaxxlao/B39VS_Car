@@ -27,10 +27,6 @@ private:
     
     // 基础速度
     int m_baseSpeed;      // 基础速度
-    
-    // 转向增益参数
-    float m_leftTurnGain;  // 左转增益
-    float m_rightTurnGain; // 右转增益
 
 public:
     // 构造函数
@@ -48,9 +44,6 @@ public:
     // 设置基础速度
     void setBaseSpeed(int speed);
     
-    // 设置转向增益
-    void setTurnGain(float leftGain, float rightGain);
-    
     // 巡线函数 - 更新机器人移动
     void update();
     
@@ -67,10 +60,6 @@ public:
     
     // 获取丢线最大时间
     unsigned long getMaxLineLostTime() const { return m_maxLineLostTime; }
-    
-    // 获取转向增益
-    float getLeftTurnGain() const { return m_leftTurnGain; }
-    float getRightTurnGain() const { return m_rightTurnGain; }
 };
 
 #endif // LINE_FOLLOWER_H 

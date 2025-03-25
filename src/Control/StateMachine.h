@@ -45,7 +45,7 @@ private:
     void performUTurn();
     
     // 巡线功能，PID控制小车跟随线路
-    void followLine(int position);
+    //void followLine(int position);
     
     // 遇到错误的处理
     void handleError(const char* errorMsg);

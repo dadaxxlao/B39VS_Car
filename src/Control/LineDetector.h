@@ -5,6 +5,24 @@
 
 class LineDetector {
 private:
+    // 路口检测状态机状态
+    enum DetectionState {
+        NO_JUNCTION,        // 无路口
+        POTENTIAL_LEFT,     // 潜在左转/左T字
+        POTENTIAL_RIGHT,    // 潜在右转/右T字
+        LOST_LINE_LEFT,     // 左转丢线状态
+        LOST_LINE_RIGHT,    // 右转丢线状态
+        CONFIRMED_T_LEFT,   // 确认左T字
+        CONFIRMED_T_RIGHT   // 确认右T字
+    };
+    
+    // 状态机变量
+    DetectionState currentState;
+    JunctionType potentialJunction;
+    unsigned long lastDetectionTime;
+    unsigned long lostLineStartTime;
+    const unsigned long junctionConfirmTime;  // 路口确认时间阈值
+    
     // 分析传感器数据确定路口类型
     JunctionType analyzeJunction(const uint16_t* sensorValues);
     

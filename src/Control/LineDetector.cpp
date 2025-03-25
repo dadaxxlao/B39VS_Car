@@ -1,81 +1,124 @@
 #include "LineDetector.h"
 #include "../Utils/Logger.h"
 
-LineDetector::LineDetector() {
+LineDetector::LineDetector() 
+    : currentState(NO_JUNCTION),
+      lastDetectionTime(0),
+      lostLineStartTime(0),
+      junctionConfirmTime(300) { // 300ms确认时间
 }
 
 JunctionType LineDetector::detectJunction(const uint16_t* sensorValues) {
-    // 分析传感器数据判断路口类型
-    return analyzeJunction(sensorValues);
-}
-
-JunctionType LineDetector::analyzeJunction(const uint16_t* sensorValues) {
     // 传感器布局（从左到右）:
     // [0][1][2][3][4][5][6][7]
+    // 数字量传感器: 0 = 检测到黑线, 1 = 检测到白线
     
-    // 计算检测到线的传感器数量
-    int lineCount = 0;
-    for (int i = 0; i < 8; i++) {
-        if (sensorValues[i] == 1) {
-            lineCount++;
+    // 当前时间
+    unsigned long currentTime = millis();
+    
+    // 分析当前传感器状态
+    bool leftDetected = (sensorValues[0] == 0 || sensorValues[1] == 0);
+    bool centerDetected = (sensorValues[3] == 0 || sensorValues[4] == 0);
+    bool rightDetected = (sensorValues[6] == 0 || sensorValues[7] == 0);
+    bool allWhite = true;
+    for(int i = 0; i < 8; i++) {
+        if(sensorValues[i] == 0) {
+            allWhite = false;
+            break;
         }
     }
     
-    // 简单的路口判断逻辑
-    // 注意：这里的逻辑需要根据实际传感器安装和小车运动调整
-    
-    // 没有检测到线
-    if (lineCount == 0) {
-        return END_OF_LINE;
+    // 状态机处理
+    switch(currentState) {
+        case NO_JUNCTION:
+            if(leftDetected && centerDetected && !rightDetected) {
+                // 可能遇到左转弯或左T字路口
+                potentialJunction = LEFT_TURN;
+                currentState = POTENTIAL_LEFT;
+                lastDetectionTime = currentTime;
+                Logger::debug("检测到潜在左转/左T字路口");
+            } else if(!leftDetected && centerDetected && rightDetected) {
+                // 可能遇到右转弯或右T字路口
+                potentialJunction = RIGHT_TURN;
+                currentState = POTENTIAL_RIGHT;
+                lastDetectionTime = currentTime;
+                Logger::debug("检测到潜在右转/右T字路口");
+            }
+            break;
+            
+        case POTENTIAL_LEFT:
+            if(allWhite) {
+                // 出现完全丢线，可能是左转弯
+                lostLineStartTime = currentTime;
+                currentState = LOST_LINE_LEFT;
+                Logger::debug("左转特征：完全丢线");
+            } else if(currentTime - lastDetectionTime > junctionConfirmTime) {
+                // 持续检测到中心线，可能是左T字路口
+                currentState = CONFIRMED_T_LEFT;
+                Logger::debug("确认为左T字路口");
+                return T_LEFT;
+            }
+            break;
+            
+        case POTENTIAL_RIGHT:
+            if(allWhite) {
+                // 出现完全丢线，可能是右转弯
+                lostLineStartTime = currentTime;
+                currentState = LOST_LINE_RIGHT;
+                Logger::debug("右转特征：完全丢线");
+            } else if(currentTime - lastDetectionTime > junctionConfirmTime) {
+                // 持续检测到中心线，可能是右T字路口
+                currentState = CONFIRMED_T_RIGHT;
+                Logger::debug("确认为右T字路口");
+                return T_RIGHT;
+            }
+            break;
+            
+        case LOST_LINE_LEFT:
+            if(centerDetected && !leftDetected) {
+                // 重新检测到中心线，完成左转弯
+                currentState = NO_JUNCTION;
+                Logger::debug("左转弯完成");
+                return LEFT_TURN;
+            } else if(currentTime - lostLineStartTime > 1000) {
+                // 超时处理
+                currentState = NO_JUNCTION;
+                Logger::warning("左转弯检测超时");
+            }
+            break;
+            
+        case LOST_LINE_RIGHT:
+            if(centerDetected && !rightDetected) {
+                // 重新检测到中心线，完成右转弯
+                currentState = NO_JUNCTION;
+                Logger::debug("右转弯完成");
+                return RIGHT_TURN;
+            } else if(currentTime - lostLineStartTime > 1000) {
+                // 超时处理
+                currentState = NO_JUNCTION;
+                Logger::warning("右转弯检测超时");
+            }
+            break;
+            
+        case CONFIRMED_T_LEFT:
+        case CONFIRMED_T_RIGHT:
+            // 已确认的T字路口，重置状态
+            currentState = NO_JUNCTION;
+            break;
     }
     
-    // 正常巡线（只有中间传感器检测到线）
-    if (lineCount <= 3 && sensorValues[3] == 1 && sensorValues[4] == 1) {
-        return NO_JUNCTION;
+    // 超时重置状态
+    if(currentState != NO_JUNCTION && currentTime - lastDetectionTime > 2000) {
+        currentState = NO_JUNCTION;
+        Logger::warning("路口检测超时，重置状态");
     }
     
-    // 左T字路口 - 左侧和前侧有线
-    if (sensorValues[0] == 1 && sensorValues[1] == 1 && 
-        sensorValues[3] == 1 && sensorValues[4] == 1 && 
-        sensorValues[6] == 0 && sensorValues[7] == 0) {
-        return T_LEFT;
-    }
-    
-    // 右T字路口 - 右侧和前侧有线
-    if (sensorValues[0] == 0 && sensorValues[1] == 0 && 
-        sensorValues[3] == 1 && sensorValues[4] == 1 && 
-        sensorValues[6] == 1 && sensorValues[7] == 1) {
-        return T_RIGHT;
-    }
-    
-    // 倒T字路口（正T） - 前侧有线，两侧没有线
-    if (sensorValues[0] == 0 && sensorValues[1] == 0 &&
-        sensorValues[3] == 1 && sensorValues[4] == 1 &&
-        sensorValues[6] == 0 && sensorValues[7] == 0) {
-        return T_FORWARD;
-    }
-    
-    // 左转弯路口
-    if (sensorValues[0] == 1 && sensorValues[1] == 1 && 
-        sensorValues[3] == 1 && sensorValues[4] == 0) {
-        return LEFT_TURN;
-    }
-    
-    // 右转弯路口
-    if (sensorValues[3] == 0 && sensorValues[4] == 1 && 
-        sensorValues[6] == 1 && sensorValues[7] == 1) {
-        return RIGHT_TURN;
-    }
-    
-    // 十字路口 - 左侧、前侧和右侧都有线
-    if (sensorValues[0] == 1 && sensorValues[1] == 1 && 
-        sensorValues[3] == 1 && sensorValues[4] == 1 && 
-        sensorValues[6] == 1 && sensorValues[7] == 1) {
-        return CROSS;
-    }
-    
-    // 默认情况
-    return NO_JUNCTION;
+    return ::NO_JUNCTION;  // 使用全局作用域的NO_JUNCTION
+}
+
+JunctionType LineDetector::analyzeJunction(const uint16_t* sensorValues) {
+    // 这个方法现在只被detectJunction调用
+    return detectJunction(sensorValues);
 }
 
 int LineDetector::getActionForJunction(JunctionType junction, SystemState state, ColorCode color) {

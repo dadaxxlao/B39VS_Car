@@ -32,6 +32,9 @@ public:
     // 获取红外传感器原始数据
     const uint16_t* getInfraredSensorValues();
     
+    // 获取红外传感器实例的引用
+    InfraredArray& getInfraredArray() { return infraredSensor; }
+    
     // 判断是否检测到线
     bool isLineDetected();
     
