@@ -7,14 +7,17 @@ StateMachine::StateMachine() :
     sensorManager(nullptr), 
     motionController(nullptr), 
     roboticArm(nullptr),
+    m_lineFollower(nullptr),
     junctionCounter(0),
     detectedColor(COLOR_UNKNOWN) {
 }
 
-void StateMachine::init(SensorManager* sensors, MotionController* motion, RoboticArm* arm) {
+void StateMachine::init(SensorManager* sensors, MotionController* motion, 
+                       RoboticArm* arm, LineFollower* lineFollower) {
     sensorManager = sensors;
     motionController = motion;
     roboticArm = arm;
+    m_lineFollower = lineFollower;
     Logger::info("状态机初始化完成");
 }
 
@@ -205,43 +208,10 @@ void StateMachine::handleObjectFind() {
         }
     }
     
-    // 5. 如果是正常巡线，按照PID控制线位置
+    // 5. 如果是正常巡线，使用LineFollower进行控制
     if (junction == NO_JUNCTION) {
-        int position = sensorManager->getLinePosition();
-        followLine(position);
+        m_lineFollower->update();
     }
-}
-
-// 实现巡线函数
-void StateMachine::followLine(int position) {
-    // 基本参数
-    const int centerPosition = 3500; // 线位于中央的位置值
-    const float Kp = 0.5;  // 比例系数
-    const float Kd = 0.1;  // 微分系数
-    
-    // 计算误差
-    static int lastError = 0;
-    int error = position - centerPosition;
-    int errorChange = error - lastError;
-    lastError = error;
-    
-    // PID计算转向量
-    float turnAmount = Kp * error + Kd * errorChange;
-    
-    // 约束转向量
-    turnAmount = constrain(turnAmount, -100, 100);
-    
-    // 发送速度指令给麦克纳姆轮运动控制器
-    // 对于麦克纳姆轮，使用mecanumDrive来实现差速巡线
-    // 转换为mecanumDrive的参数：前进+旋转
-    float forwardSpeed = 0.8;  // 前进速度分量
-    float rotationSpeed = turnAmount / 150.0;  // 旋转分量，归一化到-1.0到1.0
-    
-    // 限制旋转分量范围
-    rotationSpeed = constrain(rotationSpeed, -0.8, 0.8);
-    
-    // 使用运动控制器的mecanumDrive直接控制
-    motionController->mecanumDrive(0, forwardSpeed, rotationSpeed);
 }
 
 void StateMachine::handleObjectGrab() {
@@ -321,9 +291,8 @@ void StateMachine::handleObjectLocate() {
                     // 更新上一个路口类型
                     lastJunction = junction;
                 } else if (junction == NO_JUNCTION) {
-                    // 正常巡线
-                    int position = sensorManager->getLinePosition();
-                    followLine(position);
+                    // 正常巡线，使用LineFollower进行控制
+                    m_lineFollower->update();
                     lastJunction = NO_JUNCTION;
                 }
             }

@@ -25,6 +25,11 @@ const char* colorNames[] = {
     "未知"
 };
 
+// 函数声明
+void performDetection();
+void performCalibration();
+void showRawData();
+
 void printCommandHelp() {
     Logger::info("======= 颜色识别HSV测试程序 =======");
     Logger::info("可用命令:");
@@ -62,8 +67,12 @@ void switchMode(TestMode newMode) {
 }
 
 void switchCalibrateColor() {
-    // 切换校准目标颜色
-    calibrateColor = static_cast<ColorCode>((calibrateColor + 1) % COLOR_UNKNOWN);
+    // 切换校准目标颜色，修复除零警告
+    ColorCode nextColor = static_cast<ColorCode>(calibrateColor + 1);
+    if (nextColor >= COLOR_UNKNOWN) {
+        nextColor = COLOR_RED;
+    }
+    calibrateColor = nextColor;
     Logger::info("校准目标切换为：%s", colorNames[calibrateColor]);
 }
 

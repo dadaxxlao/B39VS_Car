@@ -40,12 +40,6 @@ private:
     
     // 根据RGB值识别颜色
     ColorCode identifyColor(uint16_t r, uint16_t g, uint16_t b, uint16_t c);
-    
-    // 使用HSV算法识别颜色
-    ColorCode identifyColorHSV(uint16_t r, uint16_t g, uint16_t b, uint16_t c);
-    
-    // 使用RGB算法识别颜色（兼容旧版）
-    ColorCode identifyColorRGB(uint16_t r, uint16_t g, uint16_t b, uint16_t c);
 
 public:
     ColorSensor();
@@ -78,6 +72,10 @@ public:
     // 计算RGB比例
     void calculateNormalizedRGB(uint16_t r, uint16_t g, uint16_t b, uint16_t c, 
                                 float* normR, float* normG, float* normB);
+                                
+    // 颜色识别算法（测试用）
+    ColorCode identifyColorHSV(uint16_t r, uint16_t g, uint16_t b, uint16_t c);
+    ColorCode identifyColorRGB(uint16_t r, uint16_t g, uint16_t b, uint16_t c);
 };
 
 #endif // COLOR_SENSOR_H 

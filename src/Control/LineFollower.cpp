@@ -4,7 +4,7 @@
 LineFollower::LineFollower(InfraredArray& infraredSensor, MotionController& motionController)
     : m_infraredSensor(infraredSensor)
     , m_motionController(motionController)
-    , m_Kp(1.3)
+    , m_Kp(1.0)
     , m_Ki(0.0)
     , m_Kd(1.0)
     , m_lastError(0)
@@ -14,7 +14,7 @@ LineFollower::LineFollower(InfraredArray& infraredSensor, MotionController& moti
     , m_lastForwardSpeed(0.3)
     , m_lastTurnAmount(0.0)
     , m_baseSpeed(FOLLOW_SPEED)
-    , m_leftTurnGain(1.0)  // 新增左转增益参数，默认1.2倍
+    , m_leftTurnGain(1.0)  // 新增左转增益参数，默认1.0倍
     , m_rightTurnGain(1.0) // 新增右转增益参数，默认1.0倍
 {
 }

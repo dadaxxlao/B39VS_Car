@@ -6,6 +6,7 @@
 #include "../Motor/MotionController.h"
 #include "../Arm/RoboticArm.h"
 #include "LineDetector.h"
+#include "LineFollower.h"
 
 class StateMachine {
 private:
@@ -16,6 +17,7 @@ private:
     MotionController* motionController;
     RoboticArm* roboticArm;
     LineDetector lineDetector;
+    LineFollower* m_lineFollower;
     
     // 路口计数器
     int junctionCounter;
@@ -51,8 +53,9 @@ private:
 public:
     StateMachine();
     
-    // 初始化状态机，注入依赖
-    void init(SensorManager* sensors, MotionController* motion, RoboticArm* arm);
+    // 修改初始化函数，添加LineFollower参数
+    void init(SensorManager* sensors, MotionController* motion, 
+              RoboticArm* arm, LineFollower* lineFollower);
     
     // 获取当前状态
     SystemState getCurrentState() const;
