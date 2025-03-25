@@ -8,6 +8,11 @@
 #include "../Utils/Config.h"
 #include "../Utils/Logger.h"
 
+// 函数声明
+void printHelp();
+void printHistory();
+void executeJunctionAction(JunctionType junction);
+
 // 创建实例
 MotionController motionController;
 SensorManager sensorManager;
@@ -15,7 +20,8 @@ LineDetector lineDetector;
 LineFollower* lineFollower;  // 使用指针，因为需要在setup中初始化
 
 // 测试配置
-bool testRunning = false;
+bool testRunning = true;
+bool autoMode = true;  // 添加自动模式控制
 bool newCommandReceived = false;
 String receivedCommand = "";
 unsigned long lastUpdateTime = 0;
@@ -72,37 +78,118 @@ void executeJunctionAction(JunctionType junction) {
     junctionCounter++;
 }
 
+// 显示传感器状态
+void displaySensorStatus() {
+    // 获取传感器值
+    const uint16_t* values = sensorManager.getInfraredSensorValues();
+    
+    // 打印传感器值
+    Serial.print("传感器值: [");
+    for (int i = 0; i < 8; i++) {
+        Serial.print(values[i]);
+        if (i < 7) Serial.print(", ");
+    }
+    Serial.println("]");
+    
+    // 打印线位置
+    int position = sensorManager.getInfraredArray().getLinePosition();
+    Serial.print("线位置: ");
+    Serial.print(position);
+    
+    // 显示位置指示
+    Serial.print(" (");
+    if (position < -40) {
+        Serial.println("偏左)");
+    } else if (position > 40) {
+        Serial.println("偏右)");
+    } else {
+        Serial.println("居中)");
+    }
+    
+    // 显示是否检测到线
+    Serial.print("线检测: ");
+    Serial.println(sensorManager.getInfraredArray().isLineDetected() ? "检测到线" : "未检测到线");
+}
+
 // 处理串口命令
 void processCommand(String command) {
     command.trim();
     
     if (command.startsWith("start") || command == "s") {
         testRunning = true;
+        autoMode = true;
         junctionCounter = 0;
         junctionHistoryIndex = 0;
         lineFollower->reset();
-        Logger::info("路口巡线测试启动");
+        lineFollower->setPIDParams(1.0, 0.0, 1.0); // 使用更优的PID参数
+        Logger::info("路口巡线测试启动(自动模式)");
         Logger::info("等待3秒后开始...");
-        delay(3000); // 增加启动延时，给操作者更多准备时间
+        delay(3000);
     } 
     else if (command.startsWith("stop") || command == "x") {
         testRunning = false;
         motionController.emergencyStop();
         Logger::info("路口巡线测试停止");
     }
+    else if (command == "manual" || command == "m") {
+        autoMode = false;
+        testRunning = true;
+        Logger::info("切换到手动模式");
+    }
+    else if (command == "auto" || command == "a") {
+        autoMode = true;
+        testRunning = true;
+        Logger::info("切换到自动模式");
+    }
     else if (command.startsWith("kp")) {
         float value = command.substring(3).toFloat();
-        if (value > 0) {
+        if (value >= 0) {
             lineFollower->setPIDParams(value, lineFollower->getKi(), lineFollower->getKd());
-            Logger::info("设置 Kp = %.2f", value);
+            Logger::info("设置Kp = %.2f", value);
         }
     }
     else if (command.startsWith("kd")) {
         float value = command.substring(3).toFloat();
         if (value >= 0) {
             lineFollower->setPIDParams(lineFollower->getKp(), lineFollower->getKi(), value);
-            Logger::info("设置 Kd = %.2f", value);
+            Logger::info("设置Kd = %.2f", value);
         }
+    }
+    else if (command == "fw") {
+        // 前进3秒
+        testRunning = false;  // 暂停巡线
+        motionController.moveForward(DEFAULT_SPEED);
+        Logger::info("前进3秒");
+        delay(3000);
+        motionController.emergencyStop();
+        Logger::info("前进完成");
+    }
+    else if (command == "bw") {
+        // 后退3秒
+        testRunning = false;  // 暂停巡线
+        motionController.moveBackward(DEFAULT_SPEED);
+        Logger::info("后退3秒");
+        delay(3000);
+        motionController.emergencyStop();
+        Logger::info("后退完成");
+    }
+    else if (command == "f") {
+        // 短距离前进
+        testRunning = false;  // 暂停巡线
+        motionController.moveForward(DEFAULT_SPEED);
+        Logger::info("前进1秒");
+        delay(1000);
+        motionController.emergencyStop();
+        Logger::info("前进完成");
+    }
+    else if (command == "b") {
+        // 短距离后退
+        testRunning = false;  // 暂停巡线
+        motionController.moveBackward(DEFAULT_SPEED);
+        Logger::info("后退1秒");
+        delay(1000);
+        motionController.emergencyStop();
+        Logger::info("后退完成");
     }
     else if (command.startsWith("speed")) {
         int value = command.substring(6).toInt();
@@ -131,12 +218,18 @@ void processCommand(String command) {
     }
     else if (command.startsWith("help") || command == "?") {
         Serial.println("\n可用命令:");
-        Serial.println("start 或 s - 开始路口巡线测试");
+        Serial.println("start 或 s - 开始路口巡线测试(自动模式)");
         Serial.println("stop 或 x - 停止路口巡线测试");
+        Serial.println("manual 或 m - 切换到手动模式");
+        Serial.println("auto 或 a - 切换到自动模式");
         Serial.println("reset 或 r - 重置路口计数和巡线状态");
         Serial.println("history 或 h - 显示路口历史记录");
-        Serial.println("kp[value] - 设置Kp值 (例如: kp0.5)");
-        Serial.println("kd[value] - 设置Kd值 (例如: kd0.1)");
+        Serial.println("fw - 前进3秒");
+        Serial.println("bw - 后退3秒");
+        Serial.println("f - 前进1秒");
+        Serial.println("b - 后退1秒");
+        Serial.println("kp[value] - 设置比例系数");
+        Serial.println("kd[value] - 设置微分系数");
         Serial.println("speed[value] - 设置基础速度 (例如: speed100)");
         Serial.println("help 或 ? - 显示帮助信息");
     }
@@ -147,7 +240,8 @@ void setup() {
     Serial.begin(9600);
     
     // 设置日志级别
-    Logger::setLogLevel(LOG_LEVEL_DEBUG);
+    Logger::init();
+    Logger::setLogLevel(LOG_LEVEL_INFO);
     
     // 清空串口缓冲区
     while(Serial.available()) {
@@ -172,7 +266,7 @@ void setup() {
     // 初始化巡线控制器
     lineFollower = new LineFollower(sensorManager.getInfraredArray(), motionController);
     lineFollower->init();
-    lineFollower->setPIDParams(0.6, 0.0, 0.1); // 设置默认PID参数
+    lineFollower->setPIDParams(1.0, 0.0, 1.0); // 使用更优的PID参数
     lineFollower->setBaseSpeed(FOLLOW_SPEED);
     
     // 初始化历史记录数组
@@ -192,35 +286,88 @@ void setup() {
 
 void loop() {
     // 处理串口命令
-    while (Serial.available() > 0) {
-        char c = Serial.read();
-        // 忽略回车符和换行符
-        if (c == '\n' || c == '\r') {
-            if (receivedCommand.length() > 0) {
-                newCommandReceived = true;
+    if (Serial.available() > 0) {
+        String command = Serial.readStringUntil('\n');
+        command.trim();  // 移除首尾空格、回车和换行
+        
+        // 调试输出
+        Serial.print("收到命令: [");
+        Serial.print(command);
+        Serial.println("]");
+        
+        // 处理单字符命令
+        if (command.length() == 1) {
+            char cmd = command.charAt(0);
+            switch (cmd) {
+                case 's':
+                case 'S':
+                    testRunning = true;
+                    junctionCounter = 0;
+                    junctionHistoryIndex = 0;
+                    lineFollower->reset();
+                    Serial.println("启动巡线测试...");
+                    delay(3000);
+                    break;
+                    
+                case 'x':
+                case 'X':
+                    testRunning = false;
+                    motionController.emergencyStop();
+                    Serial.println("停止巡线测试");
+                    break;
+                    
+                case 'r':
+                case 'R':
+                    junctionCounter = 0;
+                    junctionHistoryIndex = 0;
+                    lastJunctionType = NO_JUNCTION;
+                    lineFollower->reset();
+                    Serial.println("重置状态完成");
+                    break;
+                    
+                case 'h':
+                case 'H':
+                    printHistory();
+                    break;
+                    
+                case '?':
+                    printHelp();
+                    break;
             }
-        } else {
-            receivedCommand += c;
         }
-    }
-    
-    if (newCommandReceived) {
-        processCommand(receivedCommand);
-        receivedCommand = ""; // 清空命令缓冲
-        newCommandReceived = false;
+        // 处理完整命令
+        else if (command.length() > 1) {
+            if (command.startsWith("start")) {
+                testRunning = true;
+                junctionCounter = 0;
+                junctionHistoryIndex = 0;
+                lineFollower->reset();
+                Serial.println("启动巡线测试...");
+                delay(3000);
+            }
+            else if (command.startsWith("stop")) {
+                testRunning = false;
+                motionController.emergencyStop();
+                Serial.println("停止巡线测试");
+            }
+            else if (command.startsWith("speed")) {
+                int value = command.substring(5).toInt();
+                if (value > 0) {
+                    lineFollower->setBaseSpeed(value);
+                    Serial.print("设置速度 = ");
+                    Serial.println(value);
+                }
+            }
+            else if (command.startsWith("help")) {
+                printHelp();
+            }
+        }
     }
     
     // 根据测试状态执行相应操作
     if (testRunning) {
         // 更新传感器数据
         sensorManager.update();
-        
-        // 检查是否检测到线
-        if (!sensorManager.isLineDetected()) {
-            motionController.emergencyStop();
-            Logger::warning("未检测到线，停止运动");
-            return;
-        }
         
         // 检测路口
         JunctionType junction = lineDetector.detectJunction(sensorManager.getInfraredSensorValues());
@@ -241,35 +388,68 @@ void loop() {
             junctionLastDetectedTime = currentTime;
         } 
         
-        // 继续巡线
-        lineFollower->update();
-        
-        // 每500ms输出一次状态信息
-        if (currentTime - lastUpdateTime > 500) {
-            lastUpdateTime = currentTime;
+        // 根据模式执行巡线
+        if (autoMode) {
+            // 自动模式下执行巡线
+            lineFollower->update();
             
-            // 获取并打印红外传感器原始值
-            const uint16_t* irValues = sensorManager.getInfraredSensorValues();
-            Serial.print("传感器值: [");
-            for (int i = 0; i < 8; i++) {
-                Serial.print(irValues[i]);
-                if (i < 7) Serial.print(", ");
+            // 每100ms更新一次状态信息
+            if (currentTime - lastUpdateTime > 100) {
+                lastUpdateTime = currentTime;
+                displaySensorStatus();
+                
+                Serial.print("当前路口: ");
+                Serial.println(junctionTypeToString(junction));
+                
+                Serial.print("路口计数: ");
+                Serial.print(junctionCounter);
+                Serial.print(", 上一个路口: ");
+                Serial.println(junctionTypeToString(lastJunctionType));
             }
-            Serial.println("]");
-            
-            Serial.print("当前路口: ");
-            Serial.println(junctionTypeToString(junction));
-            
-            Serial.print("路口计数: ");
-            Serial.print(junctionCounter);
-            Serial.print(", 上一个路口: ");
-            Serial.println(junctionTypeToString(lastJunctionType));
+        } else {
+            // 手动模式下只显示状态，不执行自动巡线
+            if (currentTime - lastUpdateTime > 500) {
+                displaySensorStatus();
+                lastUpdateTime = currentTime;
+            }
         }
     }
     else {
         // 如果测试未运行，确保车辆停止
         motionController.emergencyStop();
-        delay(50); // 减少延时，提高响应速度
+        delay(10);
+    }
+}
+
+// 打印帮助信息
+void printHelp() {
+    Serial.println("\n可用命令:");
+    Serial.println("start 或 s - 开始路口巡线测试(自动模式)");
+    Serial.println("stop 或 x - 停止路口巡线测试");
+    Serial.println("manual 或 m - 切换到手动模式");
+    Serial.println("auto 或 a - 切换到自动模式");
+    Serial.println("reset 或 r - 重置路口计数和巡线状态");
+    Serial.println("history 或 h - 显示路口历史记录");
+    Serial.println("fw - 前进3秒");
+    Serial.println("bw - 后退3秒");
+    Serial.println("f - 前进1秒");
+    Serial.println("b - 后退1秒");
+    Serial.println("kp[value] - 设置比例系数");
+    Serial.println("kd[value] - 设置微分系数");
+    Serial.println("speed[value] - 设置基础速度 (例如: speed100)");
+    Serial.println("help 或 ? - 显示帮助信息");
+}
+
+// 打印历史记录
+void printHistory() {
+    Serial.println("\n路口历史记录:");
+    for (int i = 0; i < MAX_JUNCTION_HISTORY; i++) {
+        int idx = (junctionHistoryIndex - i - 1 + MAX_JUNCTION_HISTORY) % MAX_JUNCTION_HISTORY;
+        if (i < junctionCounter) {
+            Serial.print(i+1);
+            Serial.print(": ");
+            Serial.println(junctionTypeToString(junctionHistory[idx]));
+        }
     }
 }
 
