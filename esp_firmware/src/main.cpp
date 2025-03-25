@@ -7,6 +7,7 @@
 #include <AsyncTCP.h>
 #include <ESPAsyncWebServer.h>
 #include <ArduinoJson.h>
+#include "RemoteSerialDebug.h"
 
 // 这是一个简单的测试程序，用于测试ESP32C3与Arduino之间的串口通信
 // 将此文件重命名为main.cpp并编译上传即可测试
@@ -67,6 +68,11 @@ const int LED_WIFI = 13;  // WiFi连接指示灯 (GPIO13)
 char buffer[256];
 int bufferIndex = 0;
 
+// 远程串口调试对象
+RemoteSerialDebug* remoteDebugger = nullptr;
+// 用于Arduino通信的串口
+HardwareSerial ArduinoSerial(1); // UART1，用于与Arduino通信
+
 // 函数前向声明
 void parseMessage(const char* message);
 void setupAPMode();
@@ -101,6 +107,19 @@ const char index_html[] PROGMEM = R"rawliteral(
       <button class="button" onclick="sendCommand('START')">Start</button>
       <button class="button red" onclick="sendCommand('STOP')">Stop</button>
       <button class="button blue" onclick="sendCommand('GET_STATUS')">Get Status</button>
+    </div>
+  </div>
+  
+  <div class="card">
+    <h2>远程调试</h2>
+    <div class="status">状态: <span id="debugStatus">未激活</span></div>
+    <div>
+      <button class="button blue" onclick="toggleDebug()">开启/关闭远程调试</button>
+      <div id="debugInfo" style="display:none;">
+        <p>调试服务器已开启，端口: <span id="debugPort">8880</span></p>
+        <p>连接方式: <code>telnet ESP32的IP地址 8880</code> 或使用TCP客户端</p>
+        <p>调试命令: <code>$transparent</code> 进入透明传输模式，<code>$normal</code> 返回普通模式</p>
+      </div>
     </div>
   </div>
   
@@ -163,6 +182,63 @@ const char index_html[] PROGMEM = R"rawliteral(
         websocket.send(JSON.stringify(msg));
       }
     }
+    
+    // 添加调试控制函数
+    var debugActive = false;
+    var debugTransparent = false;
+    
+    function updateDebugStatus() {
+      fetch('/api/debug', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: 'action=status'
+      })
+      .then(response => response.json())
+      .then(data => {
+        debugActive = data.active;
+        if (data.active) {
+          document.getElementById('debugStatus').innerText = data.connected ? '已连接' : '已激活';
+          document.getElementById('debugPort').innerText = data.port;
+          document.getElementById('debugInfo').style.display = 'block';
+          debugTransparent = data.transparent;
+        } else {
+          document.getElementById('debugStatus').innerText = '未激活';
+          document.getElementById('debugInfo').style.display = 'none';
+        }
+      });
+    }
+    
+    function toggleDebug() {
+      const action = debugTransparent ? 'disable' : 'enable';
+      fetch('/api/debug', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: 'action=' + action
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) {
+          debugTransparent = data.transparent;
+          document.getElementById('debugStatus').innerText = debugTransparent ? '透明模式已启用' : '正常模式';
+        } else {
+          alert('操作失败: ' + data.message);
+        }
+      });
+    }
+    
+    // 在网页加载完成后检查调试状态
+    window.addEventListener('load', function() {
+      // 初始化WebSocket
+      initWebSocket();
+      // 检查调试状态
+      setTimeout(updateDebugStatus, 1000);
+      // 每10秒检查一次调试状态
+      setInterval(updateDebugStatus, 10000);
+    });
   </script>
 </body>
 </html>
@@ -320,6 +396,61 @@ void setupWebServer() {
         } else {
             request->send(400, "application/json", "{\"success\":false,\"message\":\"Missing command parameter\"}");
         }
+    });
+    
+    // 添加远程调试控制API
+    webServer.on("/api/debug", HTTP_POST, [](AsyncWebServerRequest *request){
+        int params = request->params();
+        String action;
+        
+        for(int i=0; i<params; i++) {
+            AsyncWebParameter* p = request->getParam(i);
+            if (p->name() == "action") {
+                action = p->value();
+            }
+        }
+        
+        DynamicJsonDocument jsonDoc(256);
+        jsonDoc["success"] = true;
+        
+        if (action == "enable") {
+            if (remoteDebugger) {
+                remoteDebugger->setTransparentMode(true);
+                jsonDoc["message"] = "透明模式已启用";
+                jsonDoc["transparent"] = true;
+            } else {
+                jsonDoc["success"] = false;
+                jsonDoc["message"] = "调试器未初始化";
+            }
+        } 
+        else if (action == "disable") {
+            if (remoteDebugger) {
+                remoteDebugger->setTransparentMode(false);
+                jsonDoc["message"] = "透明模式已禁用";
+                jsonDoc["transparent"] = false;
+            } else {
+                jsonDoc["success"] = false;
+                jsonDoc["message"] = "调试器未初始化";
+            }
+        }
+        else if (action == "status") {
+            if (remoteDebugger) {
+                jsonDoc["active"] = true;
+                jsonDoc["port"] = remoteDebugger->getDebugPort();
+                jsonDoc["connected"] = remoteDebugger->hasClient();
+                jsonDoc["transparent"] = remoteDebugger->isTransparentMode();
+            } else {
+                jsonDoc["active"] = false;
+            }
+        }
+        else {
+            jsonDoc["success"] = false;
+            jsonDoc["message"] = "未知操作: " + action;
+        }
+        
+        String response;
+        serializeJson(jsonDoc, response);
+        request->send(200, "application/json", response);
     });
     
     // 如果没有处理的路由显示404页面
@@ -625,6 +756,17 @@ void setup() {
     // 设置Web服务器
     setupWebServer();
     
+    // 初始化Arduino串口 (UART1)
+    ArduinoSerial.begin(115200, SERIAL_8N1, 18, 19); // RX=18, TX=19
+    
+    // 初始化远程调试
+    remoteDebugger = new RemoteSerialDebug(&ArduinoSerial);
+    if (remoteDebugger) {
+        remoteDebugger->begin();
+        Serial.println("RemoteSerialDebug initialized on port 8880");
+        addLogToBuffer("INFO", "远程调试功能已初始化，端口：8880");
+    }
+    
     Serial.println("All services started. Waiting for commands...");
     addLogToBuffer("INFO", "All services started");
 }
@@ -780,6 +922,11 @@ void loop() {
     
     // WebSocket清理
     ws.cleanupClients();
+    
+    // 处理远程调试数据
+    if (remoteDebugger) {
+        remoteDebugger->update();
+    }
     
     delay(10);
 } 
