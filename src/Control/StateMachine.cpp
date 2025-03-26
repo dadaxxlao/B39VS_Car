@@ -1,20 +1,20 @@
 #include "StateMachine.h"
 #include "../Utils/Logger.h"
 
-StateMachine::StateMachine() : 
-    currentState(INITIALIZED), 
-    locateSubState(TURN_AROUND),
-    sensorManager(nullptr), 
-    motionController(nullptr), 
-    roboticArm(nullptr),
-    m_lineFollower(nullptr),
-    junctionCounter(0),
-    detectedColor(COLOR_UNKNOWN) {
+StateMachine::StateMachine(InfraredArray& infrared, ColorSensor& color, UltrasonicSensor& ultrasonic)
+    : currentState(INITIALIZED)
+    , locateSubState(TURN_AROUND)
+    , m_infraredSensor(infrared)
+    , m_colorSensor(color)
+    , m_ultrasonicSensor(ultrasonic)
+    , motionController(nullptr)
+    , roboticArm(nullptr)
+    , m_lineFollower(nullptr)
+    , junctionCounter(0)
+    , detectedColor(COLOR_UNKNOWN) {
 }
 
-void StateMachine::init(SensorManager* sensors, MotionController* motion, 
-                       RoboticArm* arm, LineFollower* lineFollower) {
-    sensorManager = sensors;
+void StateMachine::init(MotionController* motion, RoboticArm* arm, LineFollower* lineFollower) {
     motionController = motion;
     roboticArm = arm;
     m_lineFollower = lineFollower;
@@ -34,15 +34,11 @@ void StateMachine::transitionTo(SystemState newState) {
         return;
     }
     
-    // 记录状态转换
     Logger::info("状态转换: %d -> %d", currentState, newState);
     
-    // 根据需要在状态转换时执行特定操作
     if (currentState == OBJECT_FIND && newState == OBJECT_GRAB) {
-        // 进入抓取状态前，停止运动
         motionController->emergencyStop();
     } else if (newState == OBJECT_LOCATE) {
-        // 进入定位状态时，初始化子状态和路口计数器
         transitionLocateSubState(TURN_AROUND);
         resetJunctionCounter();
     }
@@ -93,8 +89,8 @@ void StateMachine::handleState() {
 }
 
 JunctionType StateMachine::detectJunction() {
-    // 使用LineDetector分析传感器数据
-    const uint16_t* sensorValues = sensorManager->getInfraredSensorValues();
+    // 直接使用红外传感器数据
+    const uint16_t* sensorValues = m_infraredSensor.getAllSensorValues();
     return lineDetector.detectJunction(sensorValues);
 }
 
@@ -133,12 +129,10 @@ void StateMachine::performUTurn() {
     motionController->emergencyStop();
     delay(200);
     
-    // 执行掉头动作
     motionController->turnLeft(SHARP_TURN_SPEED);
-    delay(1000); // 根据实际电机速度调整
+    delay(1000);
     
-    // 等待中央红外检测到线
-    while (!sensorManager->isLineDetected()) {
+    while (!m_infraredSensor.isLineDetected()) {
         delay(10);
     }
     
@@ -167,7 +161,7 @@ void StateMachine::handleError(const char* errorMsg) {
 // 状态处理函数实现
 void StateMachine::handleInitialized() {
     // 初始化状态的处理
-    if (!sensorManager || !motionController || !roboticArm) {
+    if (!motionController || !roboticArm) {
         handleError("依赖未注入");
         return;
     }
@@ -181,65 +175,45 @@ void StateMachine::handleInitialized() {
 }
 
 void StateMachine::handleObjectFind() {
-    // 寻找物块状态
-    // 1. 检测路口类型
     JunctionType junction = detectJunction();
-    
-    // 2. 根据状态和路口类型获取动作决策
     int action = lineDetector.getActionForJunction(junction, OBJECT_FIND);
-    
-    // 3. 执行动作
     executeJunctionAction(action);
     
-    // 4. 如果是左T字路口，需要检测物块
     if (junction == T_LEFT) {
-        // 在左转之后，检测是否有物块
-        delay(500); // 等待转弯完成
+        delay(500);
         
-        float distance = sensorManager->getUltrasonicDistance();
+        float distance = m_ultrasonicSensor.getDistance();
         if (distance <= NO_OBJECT_THRESHOLD) {
-            // 检测到物块，转到抓取状态
             Logger::info("检测到物块，距离: %.2f cm", distance);
             transitionTo(OBJECT_GRAB);
         } else {
-            // 未检测到物块，掉头
             Logger::info("未检测到物块，执行掉头");
             performUTurn();
         }
     }
     
-    // 5. 如果是正常巡线，使用LineFollower进行控制
     if (junction == NO_JUNCTION) {
         m_lineFollower->update();
     }
 }
 
 void StateMachine::handleObjectGrab() {
-    // 抓取物块状态
     motionController->emergencyStop();
     
-    // 获取超声波距离
-    float distance = sensorManager->getUltrasonicDistance();
+    float distance = m_ultrasonicSensor.getDistance();
     
-    // 根据距离调整位置
     if (distance > GRAB_DISTANCE + 2.0) {
-        // 距离太远，缓慢接近
         motionController->moveForward(FOLLOW_SPEED / 2);
     } else if (distance < GRAB_DISTANCE - 2.0) {
-        // 距离太近，略微后退
         motionController->moveBackward(FOLLOW_SPEED / 2);
     } else {
-        // 距离合适，停止并抓取
         motionController->emergencyStop();
-        
-        // 执行抓取动作
         roboticArm->grab();
         
         // 读取物块颜色
-        detectedColor = sensorManager->getColor();
+        detectedColor = m_colorSensor.readColor();
         Logger::info("物块颜色: %d", detectedColor);
         
-        // 转到定位状态
         transitionTo(OBJECT_LOCATE);
     }
 }
@@ -332,9 +306,6 @@ void StateMachine::handleObjectPlacing() {
 }
 
 void StateMachine::handleReturnBase() {
-    // 返回基地状态
-    
-    // 先执行掉头
     static bool hasTurnedAround = false;
     
     if (!hasTurnedAround) {
@@ -343,11 +314,10 @@ void StateMachine::handleReturnBase() {
         return;
     }
     
-    // 检测路口
     JunctionType junction = detectJunction();
     
-    // 判断是否所有传感器都检测到线（到达基地）
-    const uint16_t* sensors = sensorManager->getInfraredSensorValues();
+    // 判断是否到达基地
+    const uint16_t* sensors = m_infraredSensor.getAllSensorValues();
     bool allTriggered = true;
     for (int i = 0; i < 8; i++) {
         if (sensors[i] == 0) {
@@ -357,13 +327,11 @@ void StateMachine::handleReturnBase() {
     }
     
     if (allTriggered) {
-        // 所有传感器都检测到线，说明到达基地
         motionController->emergencyStop();
         transitionTo(END);
         return;
     }
     
-    // 根据路口类型决定动作
     int action = lineDetector.getActionForJunction(junction, RETURN_BASE);
     executeJunctionAction(action);
 }

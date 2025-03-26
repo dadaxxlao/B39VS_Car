@@ -65,6 +65,8 @@ void InfraredArray::update() {
 }
 
 int InfraredArray::getLinePosition() {
+    update(); // 自动更新数据
+    
     if (!isConnected) {
         return 0; // 如果未连接，返回中心位置
     }
@@ -98,17 +100,22 @@ int InfraredArray::getLinePosition() {
 }
 
 uint16_t InfraredArray::getSensorValue(uint8_t index) {
+    update(); // 自动更新数据
+    
     if (index < 8) {
         return sensorValues[index];
     }
     return 0;
 }
 
-const uint16_t* InfraredArray::getAllSensorValues() const {
+const uint16_t* InfraredArray::getAllSensorValues() {
+    update(); // 自动更新数据
     return sensorValues;
 }
 
 bool InfraredArray::isLineDetected() {
+    update(); // 自动更新数据
+    
     // 检查是否有任何传感器检测到线
     for (int i = 0; i < 8; i++) {
         if (sensorValues[i] == 0) {

@@ -58,10 +58,7 @@ void LineFollower::reset() {
 
 // 巡线函数 - 更新机器人移动
 void LineFollower::update() {
-    // 更新传感器数据
-    m_infraredSensor.update();
-    
-    // 获取线位置 (-100 到 100)
+        // 获取线位置 (-100 到 100)
     int position = m_infraredSensor.getLinePosition();
     
     // 检测是否有线

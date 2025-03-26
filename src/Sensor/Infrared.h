@@ -11,16 +11,13 @@ private:
     bool isConnected;
     
     // 读取传感器原始数据
-    bool readSensorValues();
+    void update();
     
 public:
     InfraredArray();
     
     // 初始化红外传感器
     bool begin(uint8_t address);
-    
-    // 更新传感器数据
-    void update();
     
     // 获取巡线位置（-100到100，0表示线在中心）
     int getLinePosition();
@@ -29,7 +26,7 @@ public:
     uint16_t getSensorValue(uint8_t index);
     
     // 获取所有传感器的值数组
-    const uint16_t* getAllSensorValues() const;
+    const uint16_t* getAllSensorValues();
     
     // 判断是否检测到线
     bool isLineDetected();
