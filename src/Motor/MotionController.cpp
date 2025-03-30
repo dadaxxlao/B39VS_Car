@@ -19,7 +19,7 @@ void MotionController::init() {
     // 停止所有电机
     emergencyStop();
     
-    Logger::info("麦克纳姆轮运动控制器初始化完成");
+    Logger::info("MotionCtrl", "麦克纳姆轮运动控制器初始化完成");
 }
 
 void MotionController::setMotorState(MotorDriver &motor, float ratio, int motorIndex) {
@@ -140,5 +140,5 @@ void MotionController::setMotorCompensation(float fl, float fr, float rl, float 
     motorCompensation[2] = rl;
     motorCompensation[3] = rr;
     
-    Logger::info("设置电机补偿系数: FL=%.2f, FR=%.2f, RL=%.2f, RR=%.2f", fl, fr, rl, rr);
+    Logger::info("MotionCtrl", "设置电机补偿系数: FL=%.2f, FR=%.2f, RL=%.2f, RR=%.2f", fl, fr, rl, rr);
 } 

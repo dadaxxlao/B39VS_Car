@@ -8,6 +8,7 @@
 - 不同日志级别（ERROR、WARNING、INFO、DEBUG）
 - 时间戳和标签支持
 - 针对每个通道的独立配置
+- 按标签过滤日志
 - 内存优化设计
 
 ## 2. 基本使用
@@ -87,16 +88,37 @@ Logger::enableComm(COMM_ESP, true);
 标签可以帮助识别日志来源，例如区分不同模块的日志。
 
 ```cpp
-// 为当前通道设置标签
+// 方式1：为当前通道设置默认标签
 Logger::setLogTag(COMM_SERIAL, "MOTOR");
 Logger::info("电机速度: %d", motorSpeed);  // 输出: [INFO][MOTOR] 电机速度: 123
 
+// 方式2：直接在日志调用中指定标签（推荐）
+Logger::info("MOTOR", "电机速度: %d", motorSpeed);  // 输出: [INFO][MOTOR] 电机速度: 123
+
 // 设置全局标签（所有通道）
 Logger::setGlobalLogTag("SYSTEM");
-
-// 使用带标签的单次日志（不改变当前标签设置）
-Logger::infoWithTag("SENSOR", "距离传感器读数: %d cm", distance);
 ```
+
+### 按标签过滤日志
+
+新特性：可以为特定标签设置日志级别，实现更精细的日志过滤。
+
+```cpp
+// 默认情况下，全局日志级别设置为INFO
+Logger::setGlobalLogLevel(LOG_LEVEL_INFO);
+
+// 为特定标签设置更详细的日志级别
+Logger::setLogLevelForTag("MOTOR", LOG_LEVEL_DEBUG);  // 显示MOTOR标签的所有DEBUG级别日志
+Logger::setLogLevelForTag("WIFI", LOG_LEVEL_ERROR);   // 仅显示WIFI标签的ERROR级别日志
+
+// 重置特定标签的日志级别（恢复为全局设置）
+Logger::resetLogLevelForTag("MOTOR");
+
+// 重置所有标签的日志级别（恢复为全局设置）
+Logger::resetAllTagLogLevels();
+```
+
+这样，当全局日志级别设置为INFO时，只有MOTOR模块会显示DEBUG级别的日志，而WIFI模块只会显示ERROR级别的日志，其他模块则遵循全局设置。
 
 ### 日志格式配置
 
@@ -120,6 +142,7 @@ Logger::configureChannel(COMM_BT, config);
 - `F()`宏将常量字符串存储在Flash中节省RAM
 - 时间戳基于系统启动后的运行时间
 - 日志采用统一的内部处理函数提高代码复用
+- 标签日志级别使用小型内存池存储（最多支持10个标签）
 
 ## 6. 完整示例
 
@@ -144,14 +167,15 @@ void setup() {
   Logger::enableComm(COMM_BT, true);
   
   // 配置日志级别
-  Logger::setGlobalLogLevel(LOG_LEVEL_DEBUG);
+  Logger::setGlobalLogLevel(LOG_LEVEL_INFO);
   
-  // 设置系统标签
-  Logger::setGlobalLogTag("SYSTEM");
+  // 为特定模块启用调试日志
+  Logger::setLogLevelForTag("MOTOR", LOG_LEVEL_DEBUG);
+  Logger::setLogLevelForTag("SENSOR", LOG_LEVEL_DEBUG);
   
   // 记录启动信息
-  Logger::info("系统启动完成");
-  Logger::debug("调试模式已启用");
+  Logger::info("SYSTEM", "系统启动完成");
+  Logger::debug("SYSTEM", "调试模式已启用"); // 不会显示，因为SYSTEM标签没有设置为DEBUG级别
 }
 
 void loop() {
@@ -159,15 +183,16 @@ void loop() {
   static int motorSpeed = 0;
   motorSpeed = (motorSpeed + 10) % 255;
   
-  // 使用临时标签记录电机信息
-  Logger::infoWithTag("MOTOR", "电机速度更新: %d", motorSpeed);
+  // 使用标签记录电机信息
+  Logger::info("MOTOR", "电机速度更新: %d", motorSpeed);
+  Logger::debug("MOTOR", "PWM值: %d, 方向: 正向", motorSpeed); // 会显示，因为MOTOR标签设为DEBUG级别
   
   // 读取传感器示例
   int sensorValue = analogRead(A0);
   if(sensorValue > 1000) {
-    Logger::warning("传感器读数异常: %d", sensorValue);
+    Logger::warning("SENSOR", "传感器读数异常: %d", sensorValue);
   } else {
-    Logger::debugWithTag("SENSOR", "传感器读数: %d", sensorValue);
+    Logger::debug("SENSOR", "传感器读数: %d", sensorValue); // 会显示，因为SENSOR标签设为DEBUG级别
   }
   
   delay(1000);
@@ -177,7 +202,8 @@ void loop() {
 ## 7. 故障排除
 
 - **没有日志输出**：检查通道是否启用、日志级别是否正确设置、串口是否正确初始化
-- **内存不足**：减小缓冲区大小或使用更少的标签功能
+- **只有部分日志显示**：检查标签日志级别和通道日志级别的组合设置
+- **内存不足**：减小缓冲区大小，减少标签数量（MAX_TAGS默认为10）
 - **格式化不正确**：Arduino的`vsnprintf`支持有限，避免复杂的格式化字符串
 
 ## 8. 后续改进方向
@@ -186,7 +212,8 @@ void loop() {
 - 循环缓冲区记录
 - 更多的输出格式选项
 - 无线日志传输
+- 动态内存分配的标签支持
 
 ---
 
-*文档版本: 1.0* 
+*文档版本: 2.0* 

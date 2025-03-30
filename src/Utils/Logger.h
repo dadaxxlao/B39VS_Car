@@ -51,8 +51,23 @@ private:
     // 系统启动时间
     static unsigned long startTime;
     
-    // 内部日志处理函数
-    static void logInternal(int level, const __FlashStringHelper* levelStr, const char* format, va_list args);
+    // --- 标签日志级别存储 ---
+    // 标签日志级别结构体
+    struct TagLogLevel {
+        char name[16]; // 标签名称
+        int level;     // 日志级别
+    };
+    
+    // 标签日志级别数组
+    static const int MAX_TAGS = 10; // 最多支持10个特定标签级别
+    static TagLogLevel tagLogLevels[MAX_TAGS];
+    static int tagLogLevelCount; // 当前配置的标签数量
+    
+    // 获取指定标签的日志级别
+    static int getLogLevelForTag(const char* tag);
+    
+    // 内部日志处理函数，增加tag参数
+    static void logInternal(int level, const __FlashStringHelper* levelStr, const char* tag, const char* format, va_list args);
     
     // 格式化时间戳
     static void formatTimestamp(char* buffer, size_t size);
@@ -84,6 +99,9 @@ public:
         
         commConfigs[COMM_BT].enabled = ENABLE_BLUETOOTH;
         commConfigs[COMM_ESP].enabled = ENABLE_ESP;
+        
+        // 初始化标签日志级别数组
+        tagLogLevelCount = 0;
         
         Serial.println(F("Logger initialized"));
     }
@@ -143,137 +161,36 @@ public:
         }
     }
     
+    // --- 标签日志级别管理 ---
+    // 为特定标签设置日志级别
+    static void setLogLevelForTag(const char* tag, int level);
+    
+    // 重置特定标签的日志级别
+    static void resetLogLevelForTag(const char* tag);
+    
+    // 重置所有标签的日志级别
+    static void resetAllTagLogLevels();
+    
     static void update() {
         // 此函数保留用于未来的缓冲处理
     }
     
+    // --- 日志记录方法 ---
     // 错误级别日志
-    static void error(const char* format, ...) {
-        va_list args;
-        va_start(args, format);
-        logInternal(LOG_LEVEL_ERROR, LOG_LEVEL_ERROR_STR, format, args);
-        va_end(args);
-    }
+    static void error(const char* format, ...);
+    static void error(const char* tag, const char* format, ...);
     
     // 警告级别日志
-    static void warning(const char* format, ...) {
-        va_list args;
-        va_start(args, format);
-        logInternal(LOG_LEVEL_WARNING, LOG_LEVEL_WARNING_STR, format, args);
-        va_end(args);
-    }
+    static void warning(const char* format, ...);
+    static void warning(const char* tag, const char* format, ...);
     
     // 信息级别日志
-    static void info(const char* format, ...) {
-        va_list args;
-        va_start(args, format);
-        logInternal(LOG_LEVEL_INFO, LOG_LEVEL_INFO_STR, format, args);
-        va_end(args);
-    }
+    static void info(const char* format, ...);
+    static void info(const char* tag, const char* format, ...);
     
     // 调试级别日志
-    static void debug(const char* format, ...) {
-        va_list args;
-        va_start(args, format);
-        logInternal(LOG_LEVEL_DEBUG, LOG_LEVEL_DEBUG_STR, format, args);
-        va_end(args);
-    }
-    
-    // 带标签的错误日志
-    static void errorWithTag(const char* tag, const char* format, ...) {
-        char tempTag[16];
-        strncpy(tempTag, tag, sizeof(tempTag) - 1);
-        tempTag[sizeof(tempTag) - 1] = '\0';
-        
-        // 临时保存原始标签
-        char originalTags[COMM_COUNT][16];
-        for (uint8_t i = 0; i < COMM_COUNT; i++) {
-            strncpy(originalTags[i], commConfigs[i].config.tag, sizeof(originalTags[i]));
-            setLogTag((CommunicationType)i, tag);
-        }
-        
-        va_list args;
-        va_start(args, format);
-        logInternal(LOG_LEVEL_ERROR, LOG_LEVEL_ERROR_STR, format, args);
-        va_end(args);
-        
-        // 恢复原始标签
-        for (uint8_t i = 0; i < COMM_COUNT; i++) {
-            setLogTag((CommunicationType)i, originalTags[i]);
-        }
-    }
-    
-    // 带标签的警告日志
-    static void warningWithTag(const char* tag, const char* format, ...) {
-        char tempTag[16];
-        strncpy(tempTag, tag, sizeof(tempTag) - 1);
-        tempTag[sizeof(tempTag) - 1] = '\0';
-        
-        // 临时保存原始标签
-        char originalTags[COMM_COUNT][16];
-        for (uint8_t i = 0; i < COMM_COUNT; i++) {
-            strncpy(originalTags[i], commConfigs[i].config.tag, sizeof(originalTags[i]));
-            setLogTag((CommunicationType)i, tag);
-        }
-        
-        va_list args;
-        va_start(args, format);
-        logInternal(LOG_LEVEL_WARNING, LOG_LEVEL_WARNING_STR, format, args);
-        va_end(args);
-        
-        // 恢复原始标签
-        for (uint8_t i = 0; i < COMM_COUNT; i++) {
-            setLogTag((CommunicationType)i, originalTags[i]);
-        }
-    }
-    
-    // 带标签的信息日志
-    static void infoWithTag(const char* tag, const char* format, ...) {
-        char tempTag[16];
-        strncpy(tempTag, tag, sizeof(tempTag) - 1);
-        tempTag[sizeof(tempTag) - 1] = '\0';
-        
-        // 临时保存原始标签
-        char originalTags[COMM_COUNT][16];
-        for (uint8_t i = 0; i < COMM_COUNT; i++) {
-            strncpy(originalTags[i], commConfigs[i].config.tag, sizeof(originalTags[i]));
-            setLogTag((CommunicationType)i, tag);
-        }
-        
-        va_list args;
-        va_start(args, format);
-        logInternal(LOG_LEVEL_INFO, LOG_LEVEL_INFO_STR, format, args);
-        va_end(args);
-        
-        // 恢复原始标签
-        for (uint8_t i = 0; i < COMM_COUNT; i++) {
-            setLogTag((CommunicationType)i, originalTags[i]);
-        }
-    }
-    
-    // 带标签的调试日志
-    static void debugWithTag(const char* tag, const char* format, ...) {
-        char tempTag[16];
-        strncpy(tempTag, tag, sizeof(tempTag) - 1);
-        tempTag[sizeof(tempTag) - 1] = '\0';
-        
-        // 临时保存原始标签
-        char originalTags[COMM_COUNT][16];
-        for (uint8_t i = 0; i < COMM_COUNT; i++) {
-            strncpy(originalTags[i], commConfigs[i].config.tag, sizeof(originalTags[i]));
-            setLogTag((CommunicationType)i, tag);
-        }
-        
-        va_list args;
-        va_start(args, format);
-        logInternal(LOG_LEVEL_DEBUG, LOG_LEVEL_DEBUG_STR, format, args);
-        va_end(args);
-        
-        // 恢复原始标签
-        for (uint8_t i = 0; i < COMM_COUNT; i++) {
-            setLogTag((CommunicationType)i, originalTags[i]);
-        }
-    }
+    static void debug(const char* format, ...);
+    static void debug(const char* tag, const char* format, ...);
 };
 
 #endif // LOGGER_H 

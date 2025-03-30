@@ -19,7 +19,7 @@ void MotorDriver::init(uint8_t pwm, uint8_t in1, uint8_t in2) {
     digitalWrite(in1Pin, LOW);
     digitalWrite(in2Pin, LOW);
     
-    Logger::debug("电机初始化 - 引脚 PWM:%d, IN1:%d, IN2:%d", pwmPin, in1Pin, in2Pin);
+    Logger::debug("MotorDriver", "电机初始化 - 引脚 PWM:%d, IN1:%d, IN2:%d", pwmPin, in1Pin, in2Pin);
 }
 
 void MotorDriver::setMotor(int speed, bool direction) {

@@ -2,14 +2,14 @@
 #define LINE_FOLLOWER_H
 
 #include "../Motor/MotionController.h"
-#include "../Sensor/Infrared.h"
+#include "../Sensor/SensorManager.h"
 #include "../Utils/Config.h"
 #include "../Utils/Logger.h"
 
 class LineFollower {
 private:
     // 红外传感器和运动控制器的引用
-    InfraredArray& m_infraredSensor;
+    SensorManager& m_sensorManager;
     MotionController& m_motionController;
 
     // PID控制参数
@@ -28,9 +28,14 @@ private:
     // 基础速度
     int m_baseSpeed;      // 基础速度
 
+    // 错误处理
+    int m_sensorErrorCount; // 传感器读取失败计数器
+    bool m_lastReadSuccess; // 上次读取是否成功
+    static const int MAX_CONSECUTIVE_ERRORS = 5; // 最大连续错误次数
+
 public:
     // 构造函数
-    LineFollower(InfraredArray& infraredSensor, MotionController& motionController);
+    LineFollower(SensorManager& sensorManager, MotionController& motionController);
     
     // 初始化函数
     void init();

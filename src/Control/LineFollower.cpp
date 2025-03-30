@@ -1,8 +1,8 @@
 #include "LineFollower.h"
 
-// 构造函数
-LineFollower::LineFollower(InfraredArray& infraredSensor, MotionController& motionController)
-    : m_infraredSensor(infraredSensor)
+// 构造函数 - 更新为接收 SensorManager
+LineFollower::LineFollower(SensorManager& sensorManager, MotionController& motionController)
+    : m_sensorManager(sensorManager) // 初始化 SensorManager
     , m_motionController(motionController)
     , m_Kp(1.0)
     , m_Ki(0.0)
@@ -14,6 +14,8 @@ LineFollower::LineFollower(InfraredArray& infraredSensor, MotionController& moti
     , m_lastForwardSpeed(0.3)
     , m_lastTurnAmount(0.0)
     , m_baseSpeed(FOLLOW_SPEED)
+    , m_sensorErrorCount(0) // 初始化错误计数器
+    , m_lastReadSuccess(true) // 初始假设读取成功
 {
 }
 
@@ -21,7 +23,7 @@ LineFollower::LineFollower(InfraredArray& infraredSensor, MotionController& moti
 void LineFollower::init() {
     // 重置所有状态
     reset();
-    Logger::info("巡线控制器已初始化");
+    Logger::info("LineFollower", "巡线控制器已初始化");
 }
 
 // 设置PID参数
@@ -32,19 +34,19 @@ void LineFollower::setPIDParams(float Kp, float Ki, float Kd) {
     // 重置PID状态，防止突变
     m_integral = 0;
     m_lastError = 0;
-    Logger::debug("已设置PID参数: Kp=%.2f, Ki=%.2f, Kd=%.2f", m_Kp, m_Ki, m_Kd);
+    Logger::debug("LineFollower", "已设置PID参数: Kp=%.2f, Ki=%.2f, Kd=%.2f", m_Kp, m_Ki, m_Kd);
 }
 
 // 设置丢线处理参数
 void LineFollower::setLineLostParams(unsigned long maxLineLostTime) {
     m_maxLineLostTime = maxLineLostTime;
-    Logger::debug("已设置最长允许丢线时间: %lu ms", m_maxLineLostTime);
+    Logger::debug("LineFollower", "已设置最长允许丢线时间: %lu ms", m_maxLineLostTime);
 }
 
 // 设置基础速度
 void LineFollower::setBaseSpeed(int speed) {
     m_baseSpeed = speed;
-    Logger::debug("已设置基础速度: %d", m_baseSpeed);
+    Logger::debug("LineFollower", "已设置基础速度: %d", m_baseSpeed);
 }
 
 // 重置状态
@@ -54,37 +56,70 @@ void LineFollower::reset() {
     m_lineLastDetectedTime = 0;
     m_lastForwardSpeed = 0.3;
     m_lastTurnAmount = 0.0;
+    m_sensorErrorCount = 0; // 重置错误计数器
+    m_lastReadSuccess = true; // 重置读取状态
 }
 
 // 巡线函数 - 更新机器人移动
 void LineFollower::update() {
-    // 更新传感器数据
-    m_infraredSensor.update();
-    
-    // 获取线位置 (-100 到 100)
-    int position = m_infraredSensor.getLinePosition();
-    
-    // 检测是否有线
-    bool lineDetected = m_infraredSensor.isLineDetected();
-    
+    // 更新传感器数据 - SensorManager 内部管理更新，这里不需要调用
+    // m_infraredSensor.update(); // 移除
+
+    int position = 0; // 初始化线位置
+    bool linePositionReadSuccess = m_sensorManager.getLinePosition(position); // 使用 SensorManager 获取线位置
+
+    // 获取传感器原始值，用于调试
+    uint16_t sensorValues[8];
+    bool sensorValuesReadSuccess = m_sensorManager.getInfraredSensorValues(sensorValues);
+
+    // 检查传感器读取是否成功
+    if (!linePositionReadSuccess || !sensorValuesReadSuccess) {
+        m_sensorErrorCount++;
+        m_lastReadSuccess = false;
+        Logger::warning("LineFollower", "传感器读取失败 (%d 次连续失败)", m_sensorErrorCount);
+
+        if (m_sensorErrorCount >= MAX_CONSECUTIVE_ERRORS) {
+            // 连续多次失败，紧急停止
+            m_motionController.emergencyStop();
+            Logger::error("LineFollower", "连续 %d 次传感器读取失败，紧急停止！", MAX_CONSECUTIVE_ERRORS);
+            return; // 停止执行后续逻辑
+        } else {
+            // 尝试使用上次的控制量继续移动（丢线逻辑）
+            Logger::info("LineFollower", "传感器读取失败，尝试按最后方向行驶");
+             if (abs(m_lastTurnAmount) > 0.2) {
+                if (m_lastTurnAmount > 0) m_motionController.spinRight(m_baseSpeed);
+                else m_motionController.spinLeft(m_baseSpeed);
+            } else {
+                m_motionController.moveForward(m_baseSpeed);
+            }
+            return; // 暂不执行 PID 计算
+        }
+    } else {
+        // 读取成功，重置错误计数器
+        m_sensorErrorCount = 0;
+        m_lastReadSuccess = true;
+    }
+
+    // 检测是否有线 - 使用 SensorManager 的方法
+    bool lineDetected = m_sensorManager.isLineDetected();
+
     // 当前时间
     unsigned long currentTime = millis();
-    
+
     // 打印传感器数值便于调试
-    const uint16_t* sensorValues = m_infraredSensor.getAllSensorValues();
-    Logger::debug("传感器值: [%d,%d,%d,%d,%d,%d,%d,%d], 位置: %d", 
+    Logger::debug("LineFollower", "传感器值: [%d,%d,%d,%d,%d,%d,%d,%d], 位置: %d, 线检测: %s",
                  sensorValues[0], sensorValues[1], sensorValues[2], sensorValues[3],
                  sensorValues[4], sensorValues[5], sensorValues[6], sensorValues[7],
-                 position);
-    
+                 position, lineDetected ? "是" : "否");
+
     if (!lineDetected) {
-        // 如果没有检测到线
+        // 如果没有检测到线 (处理逻辑基本不变，但现在依赖于 SensorManager 的 isLineDetected)
         if (m_lineLastDetectedTime == 0) {
             // 首次丢失线，记录时间
             m_lineLastDetectedTime = currentTime;
-            
+
             // 使用最后的控制量继续行驶
-            Logger::info("暂时未检测到线，继续按最后方向行驶");
+            Logger::info("LineFollower", "暂时未检测到线，继续按最后方向行驶");
             // 使用高级运动控制函数，这些函数内部会设置speedFactor
             if (abs(m_lastTurnAmount) > 0.2) {
                 // 根据转向量的符号决定转向方向
@@ -100,7 +135,7 @@ void LineFollower::update() {
         } else if (currentTime - m_lineLastDetectedTime > m_maxLineLostTime) {
             // 超过最长允许丢线时间，停车
             m_motionController.emergencyStop();
-            Logger::info("长时间(%lu毫秒)未检测到线，已停止", m_maxLineLostTime);
+            Logger::info("LineFollower", "长时间(%lu毫秒)未检测到线，已停止", m_maxLineLostTime);
             return;
         } else {
             // 在允许的丢线时间内，继续按最后方向行驶
@@ -142,20 +177,20 @@ void LineFollower::update() {
     if (abs(turnAmount) < 0.2) {
         // 小转向量，直接前进
         m_motionController.moveForward(m_baseSpeed);
-        Logger::debug("线位置: %d, 误差较小，直行", position);
+        Logger::debug("LineFollower", "线位置: %d, 误差较小，直行", position);
     } else if (turnAmount > 0) {
         // 线偏右，需要右转修正
         int turnSpeed = map(abs(turnAmount * 100), 20, 80, m_baseSpeed/2, m_baseSpeed);
         // 确保转向速度在合理范围内
         turnSpeed = constrain(turnSpeed, m_baseSpeed/2, m_baseSpeed);
         m_motionController.spinRight(turnSpeed);
-        Logger::debug("线位置: %d (偏右), 右转修正, 转向量: %.2f", position, turnAmount);
+        Logger::debug("LineFollower", "线位置: %d (偏右), 右转修正, 转向量: %.2f", position, turnAmount);
     } else {
         // 线偏左，需要左转修正
         int turnSpeed = map(abs(turnAmount * 100), 20, 80, m_baseSpeed/2, m_baseSpeed);
         // 确保转向速度在合理范围内
         turnSpeed = constrain(turnSpeed, m_baseSpeed/2, m_baseSpeed);
         m_motionController.spinLeft(turnSpeed);
-        Logger::debug("线位置: %d (偏左), 左转修正, 转向量: %.2f", position, turnAmount);
+        Logger::debug("LineFollower", "线位置: %d (偏左), 左转修正, 转向量: %.2f", position, turnAmount);
     }
 } 

@@ -1,84 +1,322 @@
 #include "SensorManager.h"
 #include "../Utils/Logger.h"
 
-SensorManager::SensorManager() : lastDistance(0), lastColor(COLOR_UNKNOWN) {
+SensorManager::SensorManager() 
+    : allSensorsInitialized(false), 
+      lastValidDistance(0), 
+      lastValidLinePosition(0), 
+      lastValidColor(COLOR_UNKNOWN) {
+    // 初始化缓存数组
+    for (int i = 0; i < 8; i++) {
+        lastInfraredValues[i] = 0;
+    }
 }
 
-void SensorManager::initAllSensors() {
+bool SensorManager::initAllSensors() {
+    bool allSuccess = true;
+    
     // 初始化红外线传感器
-    if (!infraredSensor.begin(INFRARED_ARRAY_ADDR)) {
-        Logger::error("红外线传感器初始化失败");
+    if (!infraredSensor.begin()) {
+        Logger::error("SensorMgr", "红外线传感器初始化失败");
+        allSuccess = false;
     }
     
     // 初始化超声波传感器
-    ultrasonicSensor.init(ULTRASONIC_TRIG_PIN, ULTRASONIC_ECHO_PIN);
+    if (!ultrasonicSensor.init()) {
+        Logger::error("SensorMgr", "超声波传感器初始化失败");
+        allSuccess = false;
+    }
     
     // 初始化颜色传感器
     if (!colorSensor.begin(COLOR_SENSOR_ADDR)) {
-        Logger::error("颜色传感器初始化失败");
+        Logger::error("SensorMgr", "颜色传感器初始化失败");
+        allSuccess = false;
     }
     
-    Logger::info("传感器初始化完成");
+    allSensorsInitialized = allSuccess;
+    
+    if (allSuccess) {
+        Logger::info("SensorMgr", "所有传感器初始化成功");
+    } else {
+        Logger::warning("SensorMgr", "部分传感器初始化失败");
+    }
+    
+    return allSuccess;
 }
 
-float SensorManager::getUltrasonicDistance() {
-    float distance = ultrasonicSensor.getDistance();
+bool SensorManager::areAllSensorsInitialized() const {
+    return allSensorsInitialized;
+}
+
+bool SensorManager::isSensorInitialized(SensorType type) const {
+    switch (type) {
+        case SensorType::ULTRASONIC:
+            return ultrasonicSensor.isInitialized();
+        case SensorType::INFRARED_ARRAY:
+            return infraredSensor.isInitialized();
+        case SensorType::COLOR:
+            return colorSensor.isInitialized();
+        default:
+            return false;
+    }
+}
+
+SensorStatus SensorManager::getSensorHealth(SensorType type) {
+    switch (type) {
+        case SensorType::ULTRASONIC:
+            return ultrasonicSensor.checkHealth();
+        case SensorType::INFRARED_ARRAY:
+            return infraredSensor.checkHealth();
+        case SensorType::COLOR:
+            return SensorStatus::UNKNOWN; // 待实现
+        default:
+            return SensorStatus::UNKNOWN;
+    }
+}
+
+bool SensorManager::checkAllSensorsHealth() {
+    bool allHealthy = true;
+    
+    // 检查超声波传感器
+    SensorStatus ultrasonicStatus = ultrasonicSensor.checkHealth();
+    if (ultrasonicStatus != SensorStatus::OK) {
+        Logger::warning("SensorMgr", "超声波传感器状态异常: %d", (int)ultrasonicStatus);
+        allHealthy = false;
+    }
+    
+    // 检查红外传感器
+    SensorStatus infraredStatus = infraredSensor.checkHealth();
+    if (infraredStatus != SensorStatus::OK) {
+        Logger::warning("SensorMgr", "红外传感器状态异常: %d", (int)infraredStatus);
+        allHealthy = false;
+    }
+    
+    // 检查颜色传感器 (待实现)
+    
+    return allHealthy;
+}
+
+void SensorManager::updateAll() {
+    // 更新各个传感器数据
+    updateInfrared();
+    updateColor();
+    // 超声波传感器通常按需更新，不在这里调用
+}
+
+void SensorManager::updateInfrared() {
+    infraredSensor.update();
+    
+    // 缓存传感器值
+    infraredSensor.getAllSensorValues(lastInfraredValues);
+    
+    // 获取并缓存线位置
+    int position;
+    if (infraredSensor.getLinePosition(position)) {
+        lastValidLinePosition = position;
+    }
+}
+
+void SensorManager::updateColor() {
+    colorSensor.update();
+    
+    // 更新颜色
+    ColorCode color = colorSensor.readColor();
+    
+    // 颜色检测可能需要多次采样确认
+    if (color != lastValidColor) {
+        // 颜色变化，可能需要确认
+        // 这里简化处理，直接更新
+        lastValidColor = color;
+    }
+}
+
+bool SensorManager::getDistanceCm(float& distance) {
+    if (!ultrasonicSensor.isInitialized()) {
+        Logger::warning("SensorMgr", "尝试从未初始化的超声波传感器获取距离");
+        return false;
+    }
+    
+    // 测量新的距离
+    unsigned long duration = ultrasonicSensor.measurePulseDuration();
+    float newDistance = ultrasonicSensor.getDistanceCmFromDuration(duration);
     
     // 简单的异常值过滤
-    if (distance <= 0 || distance > 400) {
+    if (newDistance <= 0 || newDistance > 400) {
         // 测量值异常，返回上次有效值
-        Logger::warning("超声波测量异常值: %.2f，使用上次值: %.2f", distance, lastDistance);
-        return lastDistance;
+        Logger::warning("SensorMgr", "超声波测量异常值: %.2f，使用上次值: %.2f", 
+                        newDistance, lastValidDistance);
+        
+        // 如果有上次有效值，则使用它
+        if (lastValidDistance > 0) {
+            distance = lastValidDistance;
+            return true;
+        }
+        
+        return false; // 无有效值
     }
     
     // 更新上次有效值
-    lastDistance = distance;
-    return distance;
+    lastValidDistance = newDistance;
+    distance = newDistance;
+    
+    return true;
+}
+
+float SensorManager::getUltrasonicDistance() {
+    // 向后兼容方法
+    float distance = 0;
+    if (getDistanceCm(distance)) {
+        return distance;
+    }
+    return lastValidDistance; // 返回最后有效值或0
+}
+
+bool SensorManager::isObstacleDetected(float threshold) {
+    if (!ultrasonicSensor.isInitialized()) {
+        Logger::warning("SensorMgr", "尝试从未初始化的超声波传感器检测障碍物");
+        return false;
+    }
+    
+    float distance;
+    if (getDistanceCm(distance)) {
+        return distance <= threshold;
+    }
+    return false; // 如果测量失败，假设没有障碍物
+}
+
+bool SensorManager::getLinePosition(int& position) {
+    // 首先检查传感器是否初始化
+    if (!infraredSensor.isInitialized()) {
+        Logger::warning("SensorMgr", "尝试从未初始化的红外传感器获取线位置");
+        return false;
+    }
+    
+    // 使用红外传感器的新方法
+    return infraredSensor.getLinePosition(position);
 }
 
 int SensorManager::getLinePosition() {
-    return infraredSensor.getLinePosition();
+    // 向后兼容方法
+    int position;
+    if (getLinePosition(position)) {
+        return position;
+    }
+    return INFRARED_NO_LINE; // 未检测到线的特殊值
+}
+
+bool SensorManager::getInfraredSensorValues(uint16_t values[8]) {
+    if (!infraredSensor.isInitialized()) {
+        Logger::warning("SensorMgr", "尝试从未初始化的红外传感器获取传感器值");
+        return false;
+    }
+    
+    // 使用新方法直接填充数组
+    infraredSensor.getAllSensorValues(values);
+    return true;
 }
 
 const uint16_t* SensorManager::getInfraredSensorValues() {
+    // 向后兼容方法
     return infraredSensor.getAllSensorValues();
 }
 
 bool SensorManager::isLineDetected() {
+    if (!infraredSensor.isInitialized()) {
+        Logger::warning("SensorMgr", "尝试从未初始化的红外传感器检测线");
+        return false;
+    }
     return infraredSensor.isLineDetected();
 }
 
 ColorCode SensorManager::getColor() {
+    // 检查传感器是否初始化
+    if (!colorSensor.isInitialized()) {
+        Logger::warning("SensorMgr", "尝试从未初始化的颜色传感器获取颜色");
+        return COLOR_UNKNOWN;
+    }
+    
+    // 颜色传感器待重构，暂时使用旧方法
     ColorCode color = colorSensor.readColor();
     
     // 颜色检测可能需要多次采样确认
-    if (color != lastColor) {
+    if (color != lastValidColor) {
         // 颜色变化，可能需要确认
         // 这里简化处理，直接更新
-        lastColor = color;
+        lastValidColor = color;
     }
     
-    // 在此添加一些处理逻辑，确保颜色编码匹配新的定义
-    // 例如，如果colorSensor.readColor()返回的不是Config.h定义的枚举值，需要进行转换
+    return lastValidColor;
+}
+
+bool SensorManager::getColorSensorValues(uint16_t& r, uint16_t& g, uint16_t& b, uint16_t& c) {
+    // 检查传感器是否初始化
+    if (!colorSensor.isInitialized()) {
+        Logger::warning("SensorMgr", "尝试从未初始化的颜色传感器获取RGB值");
+        return false;
+    }
     
-    return color;
+    // 颜色传感器待重构，暂时使用旧方法
+    colorSensor.getRGB(&r, &g, &b, &c);
+    return true;
 }
 
 void SensorManager::getColorSensorValues(uint16_t* r, uint16_t* g, uint16_t* b, uint16_t* c) {
+    // 向后兼容方法
+    if (!colorSensor.isInitialized()) {
+        Logger::warning("SensorMgr", "尝试从未初始化的颜色传感器获取RGB值 (deprecate)");
+        // 清零输出参数
+        if (r) *r = 0;
+        if (g) *g = 0;
+        if (b) *b = 0;
+        if (c) *c = 0;
+        return;
+    }
     colorSensor.getRGB(r, g, b, c);
 }
 
-void SensorManager::debugColorSensor() {
-    colorSensor.debugPrint();
+void SensorManager::printSensorDebugInfo(SensorType type) {
+    bool isInit = isSensorInitialized(type);
+    if (!isInit) {
+        Logger::warning("SensorMgr", "尝试打印未初始化的传感器(%d)调试信息", (int)type);
+    }
+    
+    switch (type) {
+        case SensorType::ULTRASONIC:
+            ultrasonicSensor.debugPrint();
+            break;
+        case SensorType::INFRARED_ARRAY:
+            infraredSensor.debugPrint();
+            break;
+        case SensorType::COLOR:
+            colorSensor.debugPrint();
+            break;
+        default:
+            Logger::warning("SensorMgr", "未知的传感器类型: %d", (int)type);
+            break;
+    }
 }
 
-void SensorManager::update() {
-    // 定期更新所有传感器数据
-    // 这可以在主循环中调用，以确保数据的实时性
+void SensorManager::printAllDebugInfo() {
+    Logger::debug("SensorMgr", "====== 所有传感器调试信息 ======");
+    Logger::debug("SensorMgr", "初始化状态: %s", 
+                 allSensorsInitialized ? "全部初始化" : "部分未初始化");
     
-    // 更新颜色传感器数据
-    colorSensor.update();
+    Logger::debug("SensorMgr", "--- 超声波传感器 ---");
+    ultrasonicSensor.debugPrint();
     
-    // 更新红外线传感器数据
-    infraredSensor.update();
+    Logger::debug("SensorMgr", "--- 红外传感器 ---");
+    infraredSensor.debugPrint();
+    
+    Logger::debug("SensorMgr", "--- 颜色传感器 ---");
+    colorSensor.debugPrint();
+    
+    Logger::debug("SensorMgr", "=============================");
+}
+
+void SensorManager::debugColorSensor() {
+    // 向后兼容方法
+    if (!colorSensor.isInitialized()) {
+        Logger::warning("SensorMgr", "尝试从未初始化的颜色传感器打印调试信息");
+    }
+    colorSensor.debugPrint();
 } 

@@ -18,7 +18,7 @@ void StateMachine::init(SensorManager* sensors, MotionController* motion,
     motionController = motion;
     roboticArm = arm;
     m_lineFollower = lineFollower;
-    Logger::info("状态机初始化完成");
+    Logger::info("StateMachine", "状态机初始化完成");
 }
 
 SystemState StateMachine::getCurrentState() const {
@@ -35,7 +35,7 @@ void StateMachine::transitionTo(SystemState newState) {
     }
     
     // 记录状态转换
-    Logger::info("状态转换: %d -> %d", currentState, newState);
+    Logger::info("StateMachine", "状态转换: %d -> %d", currentState, newState);
     
     // 根据需要在状态转换时执行特定操作
     if (currentState == OBJECT_FIND && newState == OBJECT_GRAB) {
@@ -55,7 +55,7 @@ void StateMachine::transitionLocateSubState(LocateSubState newSubState) {
         return;
     }
     
-    Logger::info("子状态转换: %d -> %d", locateSubState, newSubState);
+    Logger::info("StateMachine", "子状态转换: %d -> %d", locateSubState, newSubState);
     locateSubState = newSubState;
 }
 
@@ -123,13 +123,13 @@ void StateMachine::executeJunctionAction(int action) {
             roboticArm->release();
             break;
         default:
-            Logger::warning("未知动作码: %d", action);
+            Logger::warning("StateMachine", "未知动作码: %d", action);
             break;
     }
 }
 
 void StateMachine::performUTurn() {
-    Logger::info("执行掉头动作");
+    Logger::info("StateMachine", "执行掉头动作");
     motionController->emergencyStop();
     delay(200);
     
@@ -156,11 +156,11 @@ int StateMachine::getJunctionCounter() const {
 
 void StateMachine::incrementJunctionCounter() {
     junctionCounter++;
-    Logger::debug("路口计数增加: %d", junctionCounter);
+    Logger::debug("StateMachine", "路口计数增加: %d", junctionCounter);
 }
 
 void StateMachine::handleError(const char* errorMsg) {
-    Logger::error("状态机错误: %s", errorMsg);
+    Logger::error("StateMachine", "状态机错误: %s", errorMsg);
     transitionTo(ERROR_STATE);
 }
 
@@ -199,11 +199,11 @@ void StateMachine::handleObjectFind() {
         float distance = sensorManager->getUltrasonicDistance();
         if (distance <= NO_OBJECT_THRESHOLD) {
             // 检测到物块，转到抓取状态
-            Logger::info("检测到物块，距离: %.2f cm", distance);
+            Logger::info("StateMachine", "检测到物块，距离: %.2f cm", distance);
             transitionTo(OBJECT_GRAB);
         } else {
             // 未检测到物块，掉头
-            Logger::info("未检测到物块，执行掉头");
+            Logger::info("StateMachine", "未检测到物块，执行掉头");
             performUTurn();
         }
     }
@@ -237,7 +237,7 @@ void StateMachine::handleObjectGrab() {
         
         // 读取物块颜色
         detectedColor = sensorManager->getColor();
-        Logger::info("物块颜色: %d", detectedColor);
+        Logger::info("StateMachine", "物块颜色: %d", detectedColor);
         
         // 转到定位状态
         transitionTo(OBJECT_LOCATE);
@@ -371,7 +371,7 @@ void StateMachine::handleReturnBase() {
 void StateMachine::handleEnd() {
     // 任务结束状态
     motionController->emergencyStop();
-    Logger::info("任务完成");
+    Logger::info("StateMachine", "任务完成");
     
     // 可以添加一些结束动作，如LED闪烁等
     

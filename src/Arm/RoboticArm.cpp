@@ -9,12 +9,12 @@ void RoboticArm::init() {
     armServo.attach(ARM_SERVO_PIN);
     gripperServo.attach(GRIPPER_SERVO_PIN);
     
-    Logger::info("机械臂初始化完成");
+    Logger::info("RoboticArm", "机械臂初始化完成");
 }
 
 void RoboticArm::calibrate() {
     // 机械臂校准程序
-    Logger::info("开始校准机械臂");
+    Logger::info("RoboticArm", "开始校准机械臂");
     
     // 先将机械臂移动到安全位置
     setPosition(ARM_UP_ANGLE);
@@ -28,7 +28,7 @@ void RoboticArm::calibrate() {
     // 标记为已校准
     isCalibrated = true;
     
-    Logger::info("机械臂校准完成");
+    Logger::info("RoboticArm", "机械臂校准完成");
 }
 
 void RoboticArm::setPosition(float angle) {
@@ -48,17 +48,17 @@ void RoboticArm::setPosition(float angle) {
         delay(SERVO_DELAY);
     }
     
-    Logger::debug("机械臂移动到位置: %d", targetPos);
+    Logger::debug("RoboticArm", "机械臂移动到位置: %d", targetPos);
 }
 
 bool RoboticArm::grab() {
     if (!isCalibrated) {
-        Logger::warning("机械臂未校准，无法执行抓取");
+        Logger::warning("RoboticArm", "机械臂未校准，无法执行抓取");
         return false;
     }
     
     // 执行抓取动作序列
-    Logger::info("执行抓取动作");
+    Logger::info("RoboticArm", "执行抓取动作");
     
     // 1. 先确保机械爪打开
     gripperServo.write(GRIPPER_OPEN_ANGLE);
@@ -83,12 +83,12 @@ bool RoboticArm::grab() {
 
 void RoboticArm::release() {
     if (!isCalibrated) {
-        Logger::warning("机械臂未校准，无法执行释放");
+        Logger::warning("RoboticArm", "机械臂未校准，无法执行释放");
         return;
     }
     
     // 执行释放动作序列
-    Logger::info("执行释放动作");
+    Logger::info("RoboticArm", "执行释放动作");
     
     // 1. 放下机械臂
     setPosition(ARM_DOWN_ANGLE);

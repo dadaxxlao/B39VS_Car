@@ -36,13 +36,13 @@ JunctionType LineDetector::detectJunction(const uint16_t* sensorValues) {
                 potentialJunction = LEFT_TURN;
                 currentState = POTENTIAL_LEFT;
                 lastDetectionTime = currentTime;
-                Logger::info("检测到潜在左转/左T字路口");
+                Logger::info("LineDetect", "检测到潜在左转/左T字路口");
             } else if(!leftDetected && centerDetected && rightDetected) {
                 // 可能遇到右转弯或右T字路口
                 potentialJunction = RIGHT_TURN;
                 currentState = POTENTIAL_RIGHT;
                 lastDetectionTime = currentTime;
-                Logger::info("检测到潜在右转/右T字路口");
+                Logger::info("LineDetect", "检测到潜在右转/右T字路口");
             }
             break;
             
@@ -51,11 +51,11 @@ JunctionType LineDetector::detectJunction(const uint16_t* sensorValues) {
                 // 出现完全丢线，可能是左转弯
                 lostLineStartTime = currentTime;
                 currentState = LOST_LINE_LEFT;
-                Logger::info("左转特征：完全丢线");
+                Logger::info("LineDetect", "左转特征：完全丢线");
             } else if(currentTime - lastDetectionTime > junctionConfirmTime) {
                 // 持续检测到中心线，可能是左T字路口
                 currentState = CONFIRMED_T_LEFT;
-                Logger::info("确认为左T字路口");
+                Logger::info("LineDetect", "确认为左T字路口");
                 return T_LEFT;
             }
             break;
@@ -65,11 +65,11 @@ JunctionType LineDetector::detectJunction(const uint16_t* sensorValues) {
                 // 出现完全丢线，可能是右转弯
                 lostLineStartTime = currentTime;
                 currentState = LOST_LINE_RIGHT;
-                Logger::info("右转特征：完全丢线");
+                Logger::info("LineDetect", "右转特征：完全丢线");
             } else if(currentTime - lastDetectionTime > junctionConfirmTime) {
                 // 持续检测到中心线，可能是右T字路口
                 currentState = CONFIRMED_T_RIGHT;
-                Logger::info("确认为右T字路口");
+                Logger::info("LineDetect", "确认为右T字路口");
                 return T_RIGHT;
             }
             break;
@@ -78,12 +78,12 @@ JunctionType LineDetector::detectJunction(const uint16_t* sensorValues) {
             if(centerDetected && !leftDetected) {
                 // 重新检测到中心线，完成左转弯
                 currentState = NO_JUNCTION;
-                Logger::info("左转弯完成");
+                Logger::info("LineDetect", "左转弯完成");
                 return LEFT_TURN;
             } else if(currentTime - lostLineStartTime > 1000) {
                 // 超时处理
                 currentState = NO_JUNCTION;
-                Logger::warning("左转弯检测超时");
+                Logger::warning("LineDetect", "左转弯检测超时");
             }
             break;
             
@@ -91,12 +91,12 @@ JunctionType LineDetector::detectJunction(const uint16_t* sensorValues) {
             if(centerDetected && !rightDetected) {
                 // 重新检测到中心线，完成右转弯
                 currentState = NO_JUNCTION;
-                Logger::info("右转弯完成");
+                Logger::info("LineDetect", "右转弯完成");
                 return RIGHT_TURN;
             } else if(currentTime - lostLineStartTime > 1000) {
                 // 超时处理
                 currentState = NO_JUNCTION;
-                Logger::warning("右转弯检测超时");
+                Logger::warning("LineDetect", "右转弯检测超时");
             }
             break;
             
@@ -110,7 +110,7 @@ JunctionType LineDetector::detectJunction(const uint16_t* sensorValues) {
     // 超时重置状态
     if(currentState != NO_JUNCTION && currentTime - lastDetectionTime > 2000) {
         currentState = NO_JUNCTION;
-        Logger::warning("路口检测超时，重置状态");
+        Logger::warning("LineDetect", "路口检测超时，重置状态");
     }
     
     return ::NO_JUNCTION;  // 使用全局作用域的NO_JUNCTION

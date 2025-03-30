@@ -5,6 +5,7 @@
 #include <Wire.h>
 #include <Adafruit_TCS34725.h>
 #include "../Utils/Config.h"
+#include "SensorCommon.h"
 
 // TCS34725颜色传感器接口
 class ColorSensor {
@@ -47,6 +48,12 @@ public:
     // 初始化传感器
     bool begin(uint8_t addr = 0x29);
     
+    // 获取初始化状态
+    bool isInitialized() const;
+    
+    // 检查传感器健康状态
+    SensorStatus checkHealth();
+    
     // 更新传感器数据
     void update();
     
@@ -55,6 +62,12 @@ public:
     
     // 获取RGB原始值
     void getRGB(uint16_t* r, uint16_t* g, uint16_t* b, uint16_t* c);
+    
+    // 获取RGB原始值(通过引用)
+    bool getRGB(uint16_t& r, uint16_t& g, uint16_t& b, uint16_t& c);
+    
+    // 获取HSV颜色值
+    bool getHSV(float& h, float& s, float& v);
     
     // 调试打印
     void debugPrint();
@@ -76,6 +89,10 @@ public:
     // 颜色识别算法（测试用）
     ColorCode identifyColorHSV(uint16_t r, uint16_t g, uint16_t b, uint16_t c);
     ColorCode identifyColorRGB(uint16_t r, uint16_t g, uint16_t b, uint16_t c);
+    
+    // EEPROM相关方法 (待实现)
+    bool saveCalibration();
+    bool loadCalibration();
 };
 
 #endif // COLOR_SENSOR_H 

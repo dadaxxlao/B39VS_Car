@@ -30,7 +30,7 @@ static SystemStateCode currentState = STATE_IDLE;
 // 示例：开始命令处理函数
 static bool handleStartCommand(const char* params) {
     // 在此处理开始命令
-    Logger::info("收到开始命令");
+    Logger::info("EspBridgeCmd", "收到开始命令");
     
     // 更新系统状态
     currentState = STATE_RUNNING;
@@ -44,7 +44,7 @@ static bool handleStartCommand(const char* params) {
 // 示例：停止命令处理函数
 static bool handleStopCommand(const char* params) {
     // 在此处理停止命令
-    Logger::info("收到停止命令");
+    Logger::info("EspBridgeCmd", "收到停止命令");
     
     // 更新系统状态
     currentState = STATE_IDLE;
@@ -58,7 +58,7 @@ static bool handleStopCommand(const char* params) {
 // 示例：重置命令处理函数
 static bool handleResetCommand(const char* params) {
     // 在此处理重置命令
-    Logger::info("收到重置命令");
+    Logger::info("EspBridgeCmd", "收到重置命令");
     
     // 更新系统状态
     currentState = STATE_IDLE;
@@ -73,11 +73,11 @@ static bool handleResetCommand(const char* params) {
 static bool handleConfigCommand(const char* params) {
     // 在此处理配置命令
     if (!params) {
-        Logger::warning("配置命令缺少参数");
+        Logger::warning("EspBridgeCmd", "配置命令缺少参数");
         return false;
     }
     
-    Logger::info("收到配置命令: %s", params);
+    Logger::info("EspBridgeCmd", "收到配置命令: %s", params);
     
     // 解析配置参数
     // 示例: "speed=100,mode=1"
@@ -91,7 +91,7 @@ static bool handleConfigCommand(const char* params) {
 // 示例：获取状态命令处理函数
 static bool handleGetStatusCommand(const char* params) {
     // 在此处理获取状态命令
-    Logger::info("收到获取状态命令");
+    Logger::info("EspBridgeCmd", "收到获取状态命令");
     
     // 发送当前状态
     EspComm.sendState(currentState, "正常运行中");
@@ -108,11 +108,11 @@ static bool handleGetStatusCommand(const char* params) {
 static bool handleCustomMotionCommand(const char* params) {
     // 在此处理自定义运动命令
     if (!params) {
-        Logger::warning("自定义运动命令缺少参数");
+        Logger::warning("EspBridgeCmd", "自定义运动命令缺少参数");
         return false;
     }
     
-    Logger::info("收到自定义运动命令: %s", params);
+    Logger::info("EspBridgeCmd", "收到自定义运动命令: %s", params);
     
     // 解析运动参数
     // 示例: "direction=forward,speed=150,time=1000"

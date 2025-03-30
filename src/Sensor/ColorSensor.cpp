@@ -12,7 +12,7 @@ bool ColorSensor::begin(uint8_t addr) {
     initialized = tcs.begin(addr);
     
     if (!initialized) {
-        Logger::error("无法连接到TCS34725颜色传感器");
+        Logger::error("Color", "无法连接到TCS34725颜色传感器");
         return false;
     }
     
@@ -21,7 +21,7 @@ bool ColorSensor::begin(uint8_t addr) {
     tcs.setGain(TCS34725_GAIN_16X);
     tcs.setIntegrationTime(TCS34725_INTEGRATIONTIME_154MS);
     
-    Logger::info("TCS34725颜色传感器初始化成功");
+    Logger::info("Color", "TCS34725颜色传感器初始化成功");
     return true;
 }
 
@@ -291,7 +291,7 @@ void ColorSensor::getRGB(uint16_t* red, uint16_t* green, uint16_t* blue, uint16_
 
 void ColorSensor::debugPrint() {
     if (!initialized) {
-        Logger::debug("颜色传感器未初始化");
+        Logger::warning("Color", "颜色传感器未初始化");
         return;
     }
     
@@ -299,18 +299,18 @@ void ColorSensor::debugPrint() {
     update();
     
     // 打印RGB和清晰度值
-    Logger::debug("颜色传感器数据: R=%d, G=%d, B=%d, C=%d", r, g, b, c);
-    Logger::debug("色温: %.2f K, 亮度: %.2f lux", colorTemp, lux);
+    Logger::debug("Color", "颜色传感器数据: R=%d, G=%d, B=%d, C=%d", r, g, b, c);
+    Logger::debug("Color", "色温: %.2f K, 亮度: %.2f lux", colorTemp, lux);
     
     // 计算并打印RGB比例
     float normR, normG, normB;
     calculateNormalizedRGB(r, g, b, c, &normR, &normG, &normB);
-    Logger::debug("RGB比例: R=%.2f, G=%.2f, B=%.2f", normR, normG, normB);
+    Logger::debug("Color", "RGB比例: R=%.2f, G=%.2f, B=%.2f", normR, normG, normB);
     
     // 计算并打印HSV值
     float h, s, v;
     rgbToHSV(r, g, b, &h, &s, &v);
-    Logger::debug("HSV值: H=%.1f°, S=%.2f, V=%.2f", h, s, v);
+    Logger::debug("Color", "HSV值: H=%.1f°, S=%.2f, V=%.2f", h, s, v);
     
     // 打印检测到的颜色
     ColorCode color = identifyColor(r, g, b, c);
@@ -325,7 +325,7 @@ void ColorSensor::debugPrint() {
         default:           colorName = "未知"; break;
     }
     
-    Logger::debug("检测到颜色: %s", colorName);
+    Logger::debug("Color", "检测到颜色: %s", colorName);
 }
 
 void ColorSensor::lock() {
@@ -346,29 +346,31 @@ void ColorSensor::unlock() {
 
 void ColorSensor::calibrateColor(ColorCode color) {
     if (!initialized) {
-        Logger::error("颜色传感器未初始化，无法校准");
+        Logger::error("Color", "校准失败：传感器未初始化");
         return;
     }
     
+    if (color == COLOR_UNKNOWN || color >= COLOR_COUNT) {
+        Logger::error("Color", "校准失败：无效的颜色代码: %d", color);
+        return;
+    }
+    
+    // 读取多次样本并取平均值
+    const int samples = 5;
     uint32_t sumR = 0, sumG = 0, sumB = 0, sumC = 0;
-    float sumH = 0, sumS = 0, sumV = 0;
-    const int samples = 10;
     
-    Logger::info("开始校准颜色，请保持传感器位置不变...");
+    Logger::info("Color", "校准: 开始读取颜色样本...");
     
-    // 采集多个样本并平均
     for (int i = 0; i < samples; i++) {
-        update();
-        sumR += r; sumG += g; sumB += b; sumC += c;
+        uint16_t r, g, b, c;
+        tcs.getRawData(&r, &g, &b, &c);
         
-        // 计算HSV值并累加
-        float h, s, v;
-        rgbToHSV(r, g, b, &h, &s, &v);
-        sumH += h; sumS += s; sumV += v;
+        sumR += r;
+        sumG += g;
+        sumB += b;
+        sumC += c;
         
-        Logger::debug("采样 %d: R=%d, G=%d, B=%d, C=%d, H=%.1f, S=%.2f, V=%.2f", 
-                     i+1, r, g, b, c, h, s, v);
-        delay(100); // 采样间隔
+        delay(100); // 等待100ms再次读取
     }
     
     // 计算平均值
@@ -377,90 +379,114 @@ void ColorSensor::calibrateColor(ColorCode color) {
     uint16_t avgB = sumB / samples;
     uint16_t avgC = sumC / samples;
     
-    float avgH = sumH / samples;
-    float avgS = sumS / samples;
-    float avgV = sumV / samples;
-    
     // 计算RGB比例
     float normR, normG, normB;
     calculateNormalizedRGB(avgR, avgG, avgB, avgC, &normR, &normG, &normB);
     
-    // 打印校准值
-    const char* colorName;
-    switch (color) {
-        case COLOR_RED:    colorName = "红色"; break;
-        case COLOR_BLUE:   colorName = "蓝色"; break;
-        case COLOR_YELLOW: colorName = "黄色"; break;
-        case COLOR_WHITE:  colorName = "白色"; break;
-        case COLOR_BLACK:  colorName = "黑色"; break;
-        default:           colorName = "未知"; break;
-    }
+    // 计算HSV值
+    float h, s, v;
+    rgbToHSV(avgR, avgG, avgB, &h, &s, &v);
     
-    Logger::info("颜色校准 - %s:", colorName);
-    Logger::info("原始值: R=%d, G=%d, B=%d, C=%d", avgR, avgG, avgB, avgC);
-    Logger::info("RGB比例值: R=%.2f, G=%.2f, B=%.2f", normR, normG, normB);
-    Logger::info("HSV值: H=%.1f°, S=%.2f, V=%.2f", avgH, avgS, avgV);
+    // 打印当前读数
+    Logger::info("Color", "校准结果 (%s):", 
+                getColorName(color));
+    Logger::info("Color", "  平均原始值: R=%d, G=%d, B=%d, C=%d", 
+                avgR, avgG, avgB, avgC);
+    Logger::info("Color", "  RGB比例: R=%.1f, G=%.1f, B=%.1f", 
+                normR, normG, normB);
+    Logger::info("Color", "  HSV值: H=%.1f°, S=%.2f, V=%.2f", 
+                h, s, v);
     
-    // 提供建议的阈值设置（RGB）
-    Logger::info("建议的RGB阈值设置:");
-    Logger::info("colorThresholds[%d].minR = %.0f;", color, normR * 0.8);
-    Logger::info("colorThresholds[%d].maxR = %.0f;", color, normR * 1.2);
-    Logger::info("colorThresholds[%d].minG = %.0f;", color, normG * 0.8);
-    Logger::info("colorThresholds[%d].maxG = %.0f;", color, normG * 1.2);
-    Logger::info("colorThresholds[%d].minB = %.0f;", color, normB * 0.8);
-    Logger::info("colorThresholds[%d].maxB = %.0f;", color, normB * 1.2);
+    // 根据读数建议阈值
+    // 为RGB比例设置+/-15%的范围
+    float marginRGB = 0.15;
+    // 为HSV设置合理范围
+    float marginH = 10.0; // 色相±10度
+    float marginS = 0.1;  // 饱和度±0.1
+    float marginV = 0.1;  // 明度±0.1
     
-    // 提供建议的HSV阈值设置
-    Logger::info("建议的HSV阈值设置:");
+    Logger::info("Color", "建议阈值设置:");
+    Logger::info("Color", "  RGB阈值:");
+    Logger::info("Color", "    R: %.1f - %.1f", 
+                normR * (1.0 - marginRGB), normR * (1.0 + marginRGB));
+    Logger::info("Color", "    G: %.1f - %.1f", 
+                normG * (1.0 - marginRGB), normG * (1.0 + marginRGB));
+    Logger::info("Color", "    B: %.1f - %.1f", 
+                normB * (1.0 - marginRGB), normB * (1.0 + marginRGB));
     
-    // 红色特殊处理（可能跨越0度）
-    if (color == COLOR_RED) {
-        // 如果靠近0度，使用跨越设置
-        if (avgH < 20 || avgH > 340) {
-            if (avgH < 20) {
-                Logger::info("colorThresholds[%d].minH = %.1f;", color, 360 - (20 - avgH));
-                Logger::info("colorThresholds[%d].maxH = %.1f;", color, avgH + 20);
-            } else {
-                Logger::info("colorThresholds[%d].minH = %.1f;", color, avgH - 20);
-                Logger::info("colorThresholds[%d].maxH = %.1f;", color, (avgH + 20) - 360);
-            }
-        } else {
-            // 普通范围
-            Logger::info("colorThresholds[%d].minH = %.1f;", color, fmax(0, avgH - 20));
-            Logger::info("colorThresholds[%d].maxH = %.1f;", color, fmin(360, avgH + 20));
-        }
-    } else {
-        // 其他颜色正常处理
-        Logger::info("colorThresholds[%d].minH = %.1f;", color, fmax(0, avgH - 20));
-        Logger::info("colorThresholds[%d].maxH = %.1f;", color, fmin(360, avgH + 20));
-    }
+    Logger::info("Color", "  HSV阈值:");
+    Logger::info("Color", "    H: %.1f - %.1f", 
+                fmax(0, h - marginH), fmin(360, h + marginH));
+    Logger::info("Color", "    S: %.2f - %.2f", 
+                fmax(0, s - marginS), fmin(1.0, s + marginS));
+    Logger::info("Color", "    V: %.2f - %.2f", 
+                fmax(0, v - marginV), fmin(1.0, v + marginV));
     
-    Logger::info("colorThresholds[%d].minS = %.2f;", color, fmax(0, avgS * 0.8));
-    Logger::info("colorThresholds[%d].maxS = %.2f;", color, fmin(1.0, avgS * 1.2));
-    Logger::info("colorThresholds[%d].minV = %.2f;", color, fmax(0, avgV * 0.8));
-    Logger::info("colorThresholds[%d].maxV = %.2f;", color, fmin(1.0, avgV * 1.2));
+    // 建议在此添加代码自动更新colorThresholds数组或保存到EEPROM
 }
 
 void ColorSensor::printRawValues() {
     if (!initialized) {
-        Logger::error("颜色传感器未初始化");
+        Logger::warning("Color", "颜色传感器未初始化");
         return;
     }
     
-    update();
+    // 获取RGB和清晰度值
+    uint16_t r, g, b, c;
+    tcs.getRawData(&r, &g, &b, &c);
     
-    // 打印原始RGB和清晰度值
-    Logger::debug("原始值: R=%d, G=%d, B=%d, C=%d", r, g, b, c);
+    Logger::info("Color", "原始值: R=%d, G=%d, B=%d, C=%d", r, g, b, c);
     
     // 计算RGB比例
     float normR, normG, normB;
     calculateNormalizedRGB(r, g, b, c, &normR, &normG, &normB);
+    Logger::info("Color", "RGB比例: R=%.1f, G=%.1f, B=%.1f", normR, normG, normB);
+}
+
+bool ColorSensor::isInitialized() const {
+    return initialized;
+}
+
+SensorStatus ColorSensor::checkHealth() {
+    if (!initialized) return SensorStatus::NOT_INITIALIZED;
     
-    // 打印比例值
-    Logger::debug("RGB比例值: R=%.2f, G=%.2f, B=%.2f", normR, normG, normB);
+    // 简单检查: 尝试读取传感器ID或状态寄存器
+    // 由于TCS34725库未提供直接的健康检查方法，这里简化处理
+    // 实际实现可能需要通过底层I2C访问
     
-    // 计算并打印HSV值
-    float h, s, v;
+    // 临时简化版本：已初始化就认为是健康的
+    return SensorStatus::OK;
+}
+
+bool ColorSensor::getRGB(uint16_t& r_out, uint16_t& g_out, uint16_t& b_out, uint16_t& c_out) {
+    if (!initialized) {
+        return false;
+    }
+    
+    r_out = r;
+    g_out = g;
+    b_out = b;
+    c_out = c;
+    return true;
+}
+
+bool ColorSensor::getHSV(float& h, float& s, float& v) {
+    if (!initialized) {
+        return false;
+    }
+    
     rgbToHSV(r, g, b, &h, &s, &v);
-    Logger::debug("HSV值: H=%.1f°, S=%.2f, V=%.2f", h, s, v);
+    return true;
+}
+
+bool ColorSensor::saveCalibration() {
+    // 待实现: 将当前的颜色阈值保存到EEPROM
+    Logger::info("Color", "颜色校准保存功能尚未实现");
+    return false;
+}
+
+bool ColorSensor::loadCalibration() {
+    // 待实现: 从EEPROM加载颜色阈值
+    Logger::info("Color", "颜色校准加载功能尚未实现");
+    return false;
 } 
