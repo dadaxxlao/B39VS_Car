@@ -264,7 +264,7 @@ void setup() {
     motionController.init();
     
     // 初始化巡线控制器
-    lineFollower = new LineFollower(sensorManager.getInfraredArray(), motionController);
+    lineFollower = new LineFollower(sensorManager.getInfraredArray());
     lineFollower->init();
     lineFollower->setPIDParams(1.0, 0.0, 1.0); // 使用更优的PID参数
     lineFollower->setBaseSpeed(FOLLOW_SPEED);

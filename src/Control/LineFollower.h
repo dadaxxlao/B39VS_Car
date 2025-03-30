@@ -7,11 +7,18 @@
 #include "../Utils/Logger.h"
 
 class LineFollower {
-private:
-    // 红外传感器和运动控制器的引用
-    SensorManager& m_sensorManager;
-    MotionController& m_motionController;
+public:
+    // 触发类型枚举
+    enum TriggerType {
+        TRIGGER_NONE,
+        TRIGGER_LEFT_EDGE,
+        TRIGGER_RIGHT_EDGE
+    };
 
+private:
+    // 红外传感器引用
+    SensorManager& m_sensorManager;
+    
     // PID控制参数
     float m_Kp;           // 比例系数
     float m_Ki;           // 积分系数
@@ -19,23 +26,17 @@ private:
     int m_lastError;      // 上一次误差
     int m_integral;       // 积分项
     
-    // 线丢失处理参数
-    unsigned long m_lineLastDetectedTime;  // 上次检测到线的时间
-    unsigned long m_maxLineLostTime;       // 最长允许丢线的时间（毫秒）
-    float m_lastForwardSpeed;              // 上次前进速度
+    // 线丢失处理参数 - 这些将由NavigationController接管
+    // unsigned long m_lineLastDetectedTime;  // 上次检测到线的时间
+    // unsigned long m_maxLineLostTime;       // 最长允许丢线的时间（毫秒）
     float m_lastTurnAmount;                // 上次转向量
     
     // 基础速度
     int m_baseSpeed;      // 基础速度
 
-    // 错误处理
-    int m_sensorErrorCount; // 传感器读取失败计数器
-    bool m_lastReadSuccess; // 上次读取是否成功
-    static const int MAX_CONSECUTIVE_ERRORS = 5; // 最大连续错误次数
-
 public:
     // 构造函数
-    LineFollower(SensorManager& sensorManager, MotionController& motionController);
+    LineFollower(SensorManager& sensorManager);
     
     // 初始化函数
     void init();
@@ -43,14 +44,14 @@ public:
     // 设置PID参数
     void setPIDParams(float Kp, float Ki, float Kd);
     
-    // 设置丢线处理参数
-    void setLineLostParams(unsigned long maxLineLostTime);
+    // 设置丢线处理参数 - 将被NavigationController接管
+    // void setLineLostParams(unsigned long maxLineLostTime);
     
     // 设置基础速度
     void setBaseSpeed(int speed);
     
-    // 巡线函数 - 更新机器人移动
-    void update();
+    // 巡线函数 - 更新机器人移动 (修改返回类型)
+    TriggerType update();
     
     // 重置状态
     void reset();
@@ -63,8 +64,11 @@ public:
     // 获取基础速度
     int getBaseSpeed() const { return m_baseSpeed; }
     
-    // 获取丢线最大时间
-    unsigned long getMaxLineLostTime() const { return m_maxLineLostTime; }
+    // 获取上次计算的转向量
+    float getLastTurnAmount() const { return m_lastTurnAmount; }
+    
+    // 获取丢线最大时间 - 将被NavigationController接管
+    // unsigned long getMaxLineLostTime() const { return m_maxLineLostTime; }
 };
 
 #endif // LINE_FOLLOWER_H 

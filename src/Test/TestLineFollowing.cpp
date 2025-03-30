@@ -296,7 +296,7 @@ void setup() {
   Serial.println("运动控制器初始化成功");
   
   // 创建并初始化巡线控制器
-  lineFollower = new LineFollower(infraredSensor, motionController);
+  lineFollower = new LineFollower(infraredSensor);
   lineFollower->init();
   Serial.println("巡线控制器初始化成功");
   

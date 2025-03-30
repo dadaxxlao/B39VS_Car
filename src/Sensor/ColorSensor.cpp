@@ -388,8 +388,8 @@ void ColorSensor::calibrateColor(ColorCode color) {
     rgbToHSV(avgR, avgG, avgB, &h, &s, &v);
     
     // 打印当前读数
-    Logger::info("Color", "校准结果 (%s):", 
-                getColorName(color));
+    // Logger::info("Color", "校准结果 (%s):", 
+    //             getColorName(color));
     Logger::info("Color", "  平均原始值: R=%d, G=%d, B=%d, C=%d", 
                 avgR, avgG, avgB, avgC);
     Logger::info("Color", "  RGB比例: R=%.1f, G=%.1f, B=%.1f", 

@@ -2,10 +2,12 @@
 #define LINE_DETECTOR_H
 
 #include "../Utils/Config.h"
+#include "LineFollower.h"
 
 class LineDetector {
 private:
-    // 路口检测状态机状态
+    // 路口检测状态机状态 - 这部分将被NavigationController替代
+    /*
     enum DetectionState {
         NO_JUNCTION,        // 无路口
         POTENTIAL_LEFT,     // 潜在左转/左T字
@@ -15,38 +17,32 @@ private:
         CONFIRMED_T_LEFT,   // 确认左T字
         CONFIRMED_T_RIGHT   // 确认右T字
     };
+    */
     
-    // 状态机变量
+    // 状态机变量 - 这部分将被NavigationController替代
+    /*
     DetectionState currentState;
     JunctionType potentialJunction;
     unsigned long lastDetectionTime;
     unsigned long lostLineStartTime;
     const unsigned long junctionConfirmTime;  // 路口确认时间阈值
+    */
     
-    // 分析传感器数据确定路口类型
-    JunctionType analyzeJunction(const uint16_t* sensorValues);
+    // 分析传感器数据确定路口类型 - 内部方法，更高层应用中不再需要
+    // JunctionType analyzeJunction(const uint16_t* sensorValues);
     
 public:
     LineDetector();
     
-    // 检测路口类型
-    JunctionType detectJunction(const uint16_t* sensorValues);
+    // 检测路口类型 - 这部分将被NavigationController替代
+    // JunctionType detectJunction(const uint16_t* sensorValues);
     
-    // 根据当前系统状态获取应该采取的动作决策
-    // 不同状态下对同一路口类型可能有不同处理策略
-    int getActionForJunction(JunctionType junction, SystemState state, ColorCode color = COLOR_UNKNOWN);
+    // 新增：静态分类方法，用于停车后的路口类型判断
+    JunctionType classifyStoppedJunction(const uint16_t* staticSensorValues, LineFollower::TriggerType triggerType);
     
-    // 根据颜色代码获取目标区域的路口数
-    int getTargetJunctionCount(ColorCode color);
+    // 新增：判断是否为T_FORWARD
+    bool isForwardTee(const uint16_t* sensorValues);
+    
 };
-
-// 路口动作类型
-#define ACTION_MOVE_FORWARD    0
-#define ACTION_TURN_LEFT       1
-#define ACTION_TURN_RIGHT      2
-#define ACTION_U_TURN          3
-#define ACTION_STOP            4
-#define ACTION_GRAB            5
-#define ACTION_PLACE           6
 
 #endif // LINE_DETECTOR_H 
