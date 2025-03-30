@@ -73,7 +73,6 @@ enum JunctionType {
     T_LEFT,     // 左旋T字路口
     T_RIGHT,    // 右旋T字路口
     T_FORWARD,  // 正T字路口（倒T）
-    CROSS,      // 十字路口
     LEFT_TURN,  // 左转弯
     RIGHT_TURN, // 右转弯
     END_OF_LINE // 线路终点

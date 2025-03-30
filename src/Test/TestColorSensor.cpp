@@ -62,6 +62,7 @@ void loop() {
   uint16_t r, g, b, c;
   colorSensor.getRGB(&r, &g, &b, &c);
   
+  Serial.println("原始RGB值:");
   Serial.print("R: ");
   Serial.print(r);
   Serial.print(", G: ");
@@ -70,6 +71,18 @@ void loop() {
   Serial.print(b);
   Serial.print(", C: ");
   Serial.println(c);
+  
+  // 计算并打印归一化RGB值
+  float normR, normG, normB;
+  colorSensor.calculateNormalizedRGB(r, g, b, c, &normR, &normG, &normB);
+  
+  Serial.println("归一化RGB值 (0-255):");
+  Serial.print("R: ");
+  Serial.print(normR);
+  Serial.print(", G: ");
+  Serial.print(normG);
+  Serial.print(", B: ");
+  Serial.println(normB);
   
   // 打印详细调试信息
   colorSensor.debugPrint();

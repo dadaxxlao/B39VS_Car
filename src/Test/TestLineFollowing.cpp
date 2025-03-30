@@ -125,10 +125,6 @@ void processCommand(String command) {
     Serial.print("最长允许丢线时间: ");
     Serial.print(lineFollower->getMaxLineLostTime());
     Serial.println("ms");
-    Serial.print("转向增益: 左转=");
-    Serial.print(lineFollower->getLeftTurnGain());
-    Serial.print(" 右转=");
-    Serial.println(lineFollower->getRightTurnGain());
   }
   else if (command == "manual" || command == "m") {
     autoMode = false;
@@ -145,7 +141,6 @@ void processCommand(String command) {
     lineFollower->setPIDParams(1.0, 0.0, 1.0);
     lineFollower->setLineLostParams(2000);
     lineFollower->setBaseSpeed(FOLLOW_SPEED);
-    lineFollower->setTurnGain(1.0, 1.0); // 默认左转增益1.2，右转增益1.0
     lineFollower->reset();
     Serial.println("已重置所有参数到默认值");
   }
@@ -161,8 +156,6 @@ void processCommand(String command) {
     Serial.println("kd[值] - 设置微分系数");
     Serial.println("lost[值] - 设置最长允许丢线时间(毫秒)");
     Serial.println("speed[值] - 设置基础速度(0-255)");
-    Serial.println("leftgain[值] - 设置左转增益(>0的浮点数)");
-    Serial.println("rightgain[值] - 设置右转增益(>0的浮点数)");
     Serial.println("reset - 重置参数到默认值");
     Serial.println("help - 显示帮助信息");
     Serial.println("test - 测试电机基本功能");
@@ -267,24 +260,6 @@ void processCommand(String command) {
     if (value > 0 && value <= 255) {
       lineFollower->setBaseSpeed(value);
       Serial.print("设置基础速度 = ");
-      Serial.println(value);
-    }
-  }
-  else if (command.startsWith("leftgain")) {
-    // 设置左转增益
-    float value = command.substring(9).toFloat();
-    if (value > 0) {
-      lineFollower->setTurnGain(value, lineFollower->getRightTurnGain());
-      Serial.print("设置左转增益 = ");
-      Serial.println(value);
-    }
-  }
-  else if (command.startsWith("rightgain")) {
-    // 设置右转增益
-    float value = command.substring(10).toFloat();
-    if (value > 0) {
-      lineFollower->setTurnGain(lineFollower->getLeftTurnGain(), value);
-      Serial.print("设置右转增益 = ");
       Serial.println(value);
     }
   }

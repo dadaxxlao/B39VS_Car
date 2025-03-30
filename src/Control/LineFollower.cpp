@@ -14,8 +14,6 @@ LineFollower::LineFollower(InfraredArray& infraredSensor, MotionController& moti
     , m_lastForwardSpeed(0.3)
     , m_lastTurnAmount(0.0)
     , m_baseSpeed(FOLLOW_SPEED)
-    , m_leftTurnGain(1.0)  // 新增左转增益参数，默认1.0倍
-    , m_rightTurnGain(1.0) // 新增右转增益参数，默认1.0倍
 {
 }
 
@@ -49,13 +47,6 @@ void LineFollower::setBaseSpeed(int speed) {
     Logger::debug("已设置基础速度: %d", m_baseSpeed);
 }
 
-// 设置转向增益
-void LineFollower::setTurnGain(float leftGain, float rightGain) {
-    m_leftTurnGain = leftGain;
-    m_rightTurnGain = rightGain;
-    Logger::debug("已设置转向增益: 左转=%.2f, 右转=%.2f", m_leftTurnGain, m_rightTurnGain);
-}
-
 // 重置状态
 void LineFollower::reset() {
     m_lastError = 0;
@@ -67,10 +58,7 @@ void LineFollower::reset() {
 
 // 巡线函数 - 更新机器人移动
 void LineFollower::update() {
-    // 更新传感器数据
-    m_infraredSensor.update();
-    
-    // 获取线位置 (-100 到 100)
+        // 获取线位置 (-100 到 100)
     int position = m_infraredSensor.getLinePosition();
     
     // 检测是否有线
@@ -96,7 +84,7 @@ void LineFollower::update() {
             Logger::info("暂时未检测到线，继续按最后方向行驶");
             // 使用高级运动控制函数，这些函数内部会设置speedFactor
             if (abs(m_lastTurnAmount) > 0.2) {
-                // 根据转向量的符号决定转向方向，修正逻辑
+                // 根据转向量的符号决定转向方向
                 if (m_lastTurnAmount > 0) {
                     m_motionController.spinRight(m_baseSpeed);  // 上次偏右，所以右转向线方向
                 } else {
@@ -113,13 +101,12 @@ void LineFollower::update() {
             return;
         } else {
             // 在允许的丢线时间内，继续按最后方向行驶
-            // 使用高级运动控制函数，这些函数内部会设置speedFactor
             if (abs(m_lastTurnAmount) > 0.2) {
-                // 根据转向量的符号决定转向方向，修正逻辑
+                // 根据转向量的符号决定转向方向
                 if (m_lastTurnAmount > 0) {
-                    m_motionController.spinRight(m_baseSpeed);  // 上次偏右，所以右转向线方向
+                    m_motionController.spinRight(m_baseSpeed);
                 } else {
-                    m_motionController.spinLeft(m_baseSpeed); // 上次偏左，所以左转向线方向
+                    m_motionController.spinLeft(m_baseSpeed);
                 }
             } else {
                 m_motionController.moveForward(m_baseSpeed);
@@ -154,24 +141,18 @@ void LineFollower::update() {
         m_motionController.moveForward(m_baseSpeed);
         Logger::debug("线位置: %d, 误差较小，直行", position);
     } else if (turnAmount > 0) {
-        // 线偏右，需要右转修正（转向黑线方向）
-        // 应用右转增益
-        float adjustedTurn = turnAmount * m_rightTurnGain;
-        int turnSpeed = map(abs(adjustedTurn * 100), 20, 80, m_baseSpeed/2, m_baseSpeed);
+        // 线偏右，需要右转修正
+        int turnSpeed = map(abs(turnAmount * 100), 20, 80, m_baseSpeed/2, m_baseSpeed);
         // 确保转向速度在合理范围内
         turnSpeed = constrain(turnSpeed, m_baseSpeed/2, m_baseSpeed);
         m_motionController.spinRight(turnSpeed);
-        Logger::debug("线位置: %d (偏右), 右转修正, 原始转向: %.2f, 调整后: %.2f", 
-                     position, turnAmount, adjustedTurn);
+        Logger::debug("线位置: %d (偏右), 右转修正, 转向量: %.2f", position, turnAmount);
     } else {
-        // 线偏左，需要左转修正（转向黑线方向）
-        // 应用左转增益
-        float adjustedTurn = abs(turnAmount) * m_leftTurnGain;
-        int turnSpeed = map(adjustedTurn * 100, 20, 80, m_baseSpeed/2, m_baseSpeed);
+        // 线偏左，需要左转修正
+        int turnSpeed = map(abs(turnAmount * 100), 20, 80, m_baseSpeed/2, m_baseSpeed);
         // 确保转向速度在合理范围内
         turnSpeed = constrain(turnSpeed, m_baseSpeed/2, m_baseSpeed);
         m_motionController.spinLeft(turnSpeed);
-        Logger::debug("线位置: %d (偏左), 左转修正, 原始转向: %.2f, 调整后: %.2f", 
-                     position, turnAmount, adjustedTurn);
+        Logger::debug("线位置: %d (偏左), 左转修正, 转向量: %.2f", position, turnAmount);
     }
 } 
