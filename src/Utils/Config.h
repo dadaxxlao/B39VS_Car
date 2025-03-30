@@ -117,4 +117,12 @@ enum LocateSubState {
 #define ENABLE_ESP           1
 // 可同时启用多种通信方式
 
+// 调试模式配置
+#define DEBUG_MODE                     // 总调试开关
+#ifdef DEBUG_MODE
+    #define DEBUG_INFRARED         1   // 红外传感器调试
+    #define DEBUG_ULTRASONIC       1   // 超声波传感器调试
+    #define DEBUG_COLOR_SENSOR     1   // 颜色传感器调试
+#endif
+
 #endif // CONFIG_H 

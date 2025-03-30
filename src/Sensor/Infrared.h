@@ -3,6 +3,7 @@
 
 #include <Arduino.h>
 #include <Wire.h>
+#include "../Utils/Config.h"
 
 class InfraredArray {
 private:
@@ -16,23 +17,18 @@ private:
 public:
     InfraredArray();
     
-    // 初始化红外传感器
-    bool begin(uint8_t address);
+    // 核心API - 保持简洁
+    bool begin(uint8_t address);   // 初始化传感器
+    void update();                 // 更新传感器数据
+    int getLinePosition();         // 获取线位置 (-100到100)
+    bool isLineDetected();         // 是否检测到线
+    const uint16_t* getAllSensorValues() const; // 获取原始数据数组
     
-    // 更新传感器数据
-    void update();
-    
-    // 获取巡线位置（-100到100，0表示线在中心）
-    int getLinePosition();
-    
-    // 获取指定传感器的值
-    uint16_t getSensorValue(uint8_t index);
-    
-    // 获取所有传感器的值数组
-    const uint16_t* getAllSensorValues() const;
-    
-    // 判断是否检测到线
-    bool isLineDetected();
+#ifdef DEBUG_INFRARED
+    // 调试API
+    void printDebugInfo();         // 打印调试信息
+    uint16_t getSensorValue(uint8_t index); // 获取单个传感器值(仅调试用)
+#endif
 };
 
 #endif // INFRARED_H 

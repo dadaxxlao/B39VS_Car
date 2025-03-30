@@ -59,9 +59,11 @@ void InfraredArray::update() {
     sensorValues[6] = (data >> 1) & 0x01;
     sensorValues[7] = (data >> 0) & 0x01;
     
+#ifdef DEBUG_INFRARED
     Logger::debug("红外传感器值: %d,%d,%d,%d,%d,%d,%d,%d", 
                  sensorValues[0], sensorValues[1], sensorValues[2], sensorValues[3],
                  sensorValues[4], sensorValues[5], sensorValues[6], sensorValues[7]);
+#endif
 }
 
 int InfraredArray::getLinePosition() {
@@ -81,8 +83,16 @@ int InfraredArray::getLinePosition() {
         // 未检测到黑线时值为1
         if (sensorValues[i] == 0) {
             sum += 1;
-            // 将传感器位置映射到-100到100的范围
-            // 0号传感器在最左边(-100)，7号传感器在最右边(+100)
+            /*
+            Sensor 0: -100
+            Sensor 1: map(1, 0, 7, -100, 100) ≈ -71 (or -72 with integer math)
+            Sensor 2: map(2, 0, 7, -100, 100) ≈ -43
+            Sensor 3: map(3, 0, 7, -100, 100) ≈ -14 (or -15 with integer math)
+            Sensor 4: map(4, 0, 7, -100, 100) ≈ +14
+            Sensor 5: map(5, 0, 7, -100, 100) ≈ +43 (or +42 with integer math)
+            Sensor 6: map(6, 0, 7, -100, 100) ≈ +71
+            Sensor 7: map(7, 0, 7, -100, 100) = +100
+            */
             int position = map(i, 0, 7, -100, 100);
             weightedSum += position;
         }
@@ -97,13 +107,6 @@ int InfraredArray::getLinePosition() {
     return weightedSum / sum;
 }
 
-uint16_t InfraredArray::getSensorValue(uint8_t index) {
-    if (index < 8) {
-        return sensorValues[index];
-    }
-    return 0;
-}
-
 const uint16_t* InfraredArray::getAllSensorValues() const {
     return sensorValues;
 }
@@ -116,4 +119,29 @@ bool InfraredArray::isLineDetected() {
         }
     }
     return false;
-} 
+}
+
+#ifdef DEBUG_INFRARED
+// 调试方法实现
+void InfraredArray::printDebugInfo() {
+    if (!isConnected) {
+        Logger::warning("红外传感器未连接");
+        return;
+    }
+    
+    Logger::debug("=== 红外传感器调试信息 ===");
+    Logger::debug("传感器值: %d,%d,%d,%d,%d,%d,%d,%d", 
+                sensorValues[0], sensorValues[1], sensorValues[2], sensorValues[3],
+                sensorValues[4], sensorValues[5], sensorValues[6], sensorValues[7]);
+    Logger::debug("线位置: %d", getLinePosition());
+    Logger::debug("检测到线: %s", isLineDetected() ? "是" : "否");
+    Logger::debug("========================");
+}
+
+uint16_t InfraredArray::getSensorValue(uint8_t index) {
+    if (index < 8) {
+        return sensorValues[index];
+    }
+    return 0;
+}
+#endif 

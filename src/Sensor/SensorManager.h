@@ -2,6 +2,7 @@
 #define SENSOR_MANAGER_H
 
 #include "../Utils/Config.h"
+#include "../Utils/Logger.h"
 #include "Infrared.h"
 #include "Ultrasonic.h"
 #include "ColorSensor.h"
@@ -12,40 +13,52 @@ private:
     UltrasonicSensor ultrasonicSensor;
     ColorSensor colorSensor;
     
-    // 上次测量的距离值（用于过滤异常值）
+    // 上次测量的值（用于过滤异常值）
     float lastDistance;
-    // 上次检测到的颜色
     ColorCode lastColor;
     
 public:
     SensorManager();
     
-    // 初始化所有传感器
-    void initAllSensors();
+    // ===== 核心API - 简洁清晰 =====
     
-    // 获取超声波测量的距离（厘米）
-    float getUltrasonicDistance();
+    // 初始化与更新
+    void initAllSensors();  // 初始化所有传感器
+    void update();          // 更新所有传感器数据(主循环调用)
     
-    // 获取红外线传感器检测的线位置（-100到100，0为中心）
-    int getLinePosition();
+    // 传感器数据访问
+    // 超声波传感器
+    float getDistance();    // 获取超声波距离(cm)
+    bool isObstacleDetected(float threshold = GRAB_DISTANCE); // 是否检测到障碍物
     
-    // 获取红外传感器原始数据
-    const uint16_t* getInfraredSensorValues();
+    // 红外传感器
+    int getLinePosition();  // 获取线位置(-100到100)
+    bool isLineDetected();  // 是否检测到线
     
-    // 判断是否检测到线
-    bool isLineDetected();
+    // 颜色传感器
+    ColorCode getColor();   // 获取检测到的颜色
     
-    // 获取颜色传感器检测的颜色
-    ColorCode getColor();
+#ifdef DEBUG_MODE
+    // ===== 调试API - 提供更多细节 =====
     
-    // 获取颜色传感器原始值
-    void getColorSensorValues(uint16_t* r, uint16_t* g, uint16_t* b, uint16_t* c);
+    // 调试信息打印
+    void debugAllSensors(); // 打印所有传感器状态
     
-    // 打印颜色传感器调试信息
-    void debugColorSensor();
+    // 传感器原始数据访问
+    const uint16_t* getInfraredSensorValues(); // 获取红外原始数据
+    void getColorSensorValues(uint16_t* r, uint16_t* g, uint16_t* b, uint16_t* c); // 获取颜色原始值
     
-    // 更新传感器数据（在主循环中调用）
-    void update();
+    // 传感器控制
+    void setColorLED(bool on); // 控制颜色传感器LED
+    
+    // 单一传感器调试
+    void debugInfrared();    // 红外传感器调试
+    void debugUltrasonic();  // 超声波传感器调试
+    void debugColorSensor(); // 颜色传感器调试
+    
+    // 传感器校准
+    void calibrateColor(ColorCode color); // 校准特定颜色
+#endif
 };
 
 #endif // SENSOR_MANAGER_H 

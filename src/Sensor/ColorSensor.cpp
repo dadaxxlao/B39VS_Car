@@ -197,60 +197,39 @@ void ColorSensor::rgbToHSV(uint16_t r, uint16_t g, uint16_t b, float* h, float* 
     }
 }
 
-// 使用RGB算法识别颜色（兼容旧版）
-ColorCode ColorSensor::identifyColorRGB(uint16_t r, uint16_t g, uint16_t b, uint16_t c) {
-    // 计算RGB比例
-    float normR, normG, normB;
-    calculateNormalizedRGB(r, g, b, c, &normR, &normG, &normB);
-    
-    // 检查光线是否足够
-    if (c < 10) return COLOR_UNKNOWN; // 光线太暗，无法可靠判断
-    
-    // 基于RGB比例判断颜色
-    // 红色: R比例高，G和B比例低
-    if (normR > 120 && normG < 80 && normB < 80) return COLOR_RED;
-    
-    // 蓝色: B比例高，R和G比例低
-    if (normB > 120 && normR < 80 && normG < 80) return COLOR_BLUE;
-    
-    // 黄色: R和G比例高，B比例低
-    if (normR > 100 && normG > 100 && normB < 80) return COLOR_YELLOW;
-    
-    // 白色: 所有比例都高
-    if (normR > 90 && normG > 90 && normB > 90) return COLOR_WHITE;
-    
-    // 黑色: 所有比例都低，或者整体亮度低
-    if ((normR < 50 && normG < 50 && normB < 50) || c < 30) return COLOR_BLACK;
-    
-    return COLOR_UNKNOWN;
-}
-
-// 使用HSV算法识别颜色
-ColorCode ColorSensor::identifyColorHSV(uint16_t r, uint16_t g, uint16_t b, uint16_t c) {
+// 统一的颜色识别算法，合并原来的RGB和HSV方法
+ColorCode ColorSensor::identifyColor(uint16_t r, uint16_t g, uint16_t b, uint16_t c) {
+    // 决定使用HSV算法作为主要实现
     float h, s, v;
     rgbToHSV(r, g, b, &h, &s, &v);
     
-    // 优先处理极端情况
-    if (c < 30) return COLOR_BLACK;  // 低强度直接判黑
-    if (v < 0.15f) return COLOR_BLACK;  // 低明度直接判黑
-    if (s < 0.1f && v > 0.9f) return COLOR_WHITE;  // 低饱和高亮判白
-    
-    // 判断红色（可能跨越360度）
-    if (colorThresholds[COLOR_RED].minH > colorThresholds[COLOR_RED].maxH) {
-        // 处理跨0度的情况（如350-10度）
-        if ((h >= colorThresholds[COLOR_RED].minH || h <= colorThresholds[COLOR_RED].maxH) &&
-            s >= colorThresholds[COLOR_RED].minS && s <= colorThresholds[COLOR_RED].maxS &&
-            v >= colorThresholds[COLOR_RED].minV && v <= colorThresholds[COLOR_RED].maxV) {
-            return COLOR_RED;
-        }
+    // 首先检查亮度是否太低 (黑色)
+    if (v < colorThresholds[COLOR_BLACK].maxV) {
+        return COLOR_BLACK;
     }
     
-    // 遍历其他颜色
+    // 然后检查饱和度是否太低 (白色)
+    if (s < colorThresholds[COLOR_WHITE].maxS) {
+        return COLOR_WHITE;
+    }
+    
+    // 根据色相判断其他颜色
     for (int i = 1; i < COLOR_COUNT; i++) {
-        // 跳过红色（已处理）和未知颜色
-        if (i == COLOR_RED || i == COLOR_UNKNOWN) continue;
+        if (i == COLOR_BLACK || i == COLOR_WHITE) {
+            continue; // 已经处理了黑白色
+        }
         
-        if (h >= colorThresholds[i].minH && h <= colorThresholds[i].maxH &&
+        // 检查是否在HSV阈值范围内
+        bool inRange = false;
+        
+        // 处理红色跨越0度的特殊情况
+        if (i == COLOR_RED && colorThresholds[i].minH > colorThresholds[i].maxH) {
+            inRange = (h >= colorThresholds[i].minH || h <= colorThresholds[i].maxH);
+        } else {
+            inRange = (h >= colorThresholds[i].minH && h <= colorThresholds[i].maxH);
+        }
+        
+        if (inRange &&
             s >= colorThresholds[i].minS && s <= colorThresholds[i].maxS &&
             v >= colorThresholds[i].minV && v <= colorThresholds[i].maxV) {
             return static_cast<ColorCode>(i);
@@ -258,20 +237,6 @@ ColorCode ColorSensor::identifyColorHSV(uint16_t r, uint16_t g, uint16_t b, uint
     }
     
     return COLOR_UNKNOWN;
-}
-
-// 根据RGB值识别颜色（集成HSV和RGB两种方法）
-ColorCode ColorSensor::identifyColor(uint16_t r, uint16_t g, uint16_t b, uint16_t c) {
-    // 使用HSV方法进行识别（主要方法）
-    ColorCode colorHSV = identifyColorHSV(r, g, b, c);
-    
-    // 如果HSV方法能够确定颜色，直接返回
-    if (colorHSV != COLOR_UNKNOWN) {
-        return colorHSV;
-    }
-    
-    // 如果HSV方法无法确定，尝试使用RGB方法作为备选
-    return identifyColorRGB(r, g, b, c);
 }
 
 void ColorSensor::getRGB(uint16_t* red, uint16_t* green, uint16_t* blue, uint16_t* clear) {
@@ -328,117 +293,14 @@ void ColorSensor::debugPrint() {
     Logger::debug("检测到颜色: %s", colorName);
 }
 
-void ColorSensor::lock() {
-    if (initialized) {
-        // 关闭TCS34725的LED
-        // 注意：这取决于Adafruit_TCS34725库是否支持
-        // 需要检查库是否有以下函数或类似功能
-        tcs.disable();
-    }
-}
-
-void ColorSensor::unlock() {
-    if (initialized) {
-        // 打开TCS34725的LED
-        tcs.enable();
-    }
-}
-
-void ColorSensor::calibrateColor(ColorCode color) {
-    if (!initialized) {
-        Logger::error("颜色传感器未初始化，无法校准");
-        return;
-    }
+void ColorSensor::setLED(bool on) {
+    if (!initialized) return;
     
-    uint32_t sumR = 0, sumG = 0, sumB = 0, sumC = 0;
-    float sumH = 0, sumS = 0, sumV = 0;
-    const int samples = 10;
-    
-    Logger::info("开始校准颜色，请保持传感器位置不变...");
-    
-    // 采集多个样本并平均
-    for (int i = 0; i < samples; i++) {
-        update();
-        sumR += r; sumG += g; sumB += b; sumC += c;
-        
-        // 计算HSV值并累加
-        float h, s, v;
-        rgbToHSV(r, g, b, &h, &s, &v);
-        sumH += h; sumS += s; sumV += v;
-        
-        Logger::debug("采样 %d: R=%d, G=%d, B=%d, C=%d, H=%.1f, S=%.2f, V=%.2f", 
-                     i+1, r, g, b, c, h, s, v);
-        delay(100); // 采样间隔
-    }
-    
-    // 计算平均值
-    uint16_t avgR = sumR / samples;
-    uint16_t avgG = sumG / samples;
-    uint16_t avgB = sumB / samples;
-    uint16_t avgC = sumC / samples;
-    
-    float avgH = sumH / samples;
-    float avgS = sumS / samples;
-    float avgV = sumV / samples;
-    
-    // 计算RGB比例
-    float normR, normG, normB;
-    calculateNormalizedRGB(avgR, avgG, avgB, avgC, &normR, &normG, &normB);
-    
-    // 打印校准值
-    const char* colorName;
-    switch (color) {
-        case COLOR_RED:    colorName = "红色"; break;
-        case COLOR_BLUE:   colorName = "蓝色"; break;
-        case COLOR_YELLOW: colorName = "黄色"; break;
-        case COLOR_WHITE:  colorName = "白色"; break;
-        case COLOR_BLACK:  colorName = "黑色"; break;
-        default:           colorName = "未知"; break;
-    }
-    
-    Logger::info("颜色校准 - %s:", colorName);
-    Logger::info("原始值: R=%d, G=%d, B=%d, C=%d", avgR, avgG, avgB, avgC);
-    Logger::info("RGB比例值: R=%.2f, G=%.2f, B=%.2f", normR, normG, normB);
-    Logger::info("HSV值: H=%.1f°, S=%.2f, V=%.2f", avgH, avgS, avgV);
-    
-    // 提供建议的阈值设置（RGB）
-    Logger::info("建议的RGB阈值设置:");
-    Logger::info("colorThresholds[%d].minR = %.0f;", color, normR * 0.8);
-    Logger::info("colorThresholds[%d].maxR = %.0f;", color, normR * 1.2);
-    Logger::info("colorThresholds[%d].minG = %.0f;", color, normG * 0.8);
-    Logger::info("colorThresholds[%d].maxG = %.0f;", color, normG * 1.2);
-    Logger::info("colorThresholds[%d].minB = %.0f;", color, normB * 0.8);
-    Logger::info("colorThresholds[%d].maxB = %.0f;", color, normB * 1.2);
-    
-    // 提供建议的HSV阈值设置
-    Logger::info("建议的HSV阈值设置:");
-    
-    // 红色特殊处理（可能跨越0度）
-    if (color == COLOR_RED) {
-        // 如果靠近0度，使用跨越设置
-        if (avgH < 20 || avgH > 340) {
-            if (avgH < 20) {
-                Logger::info("colorThresholds[%d].minH = %.1f;", color, 360 - (20 - avgH));
-                Logger::info("colorThresholds[%d].maxH = %.1f;", color, avgH + 20);
-            } else {
-                Logger::info("colorThresholds[%d].minH = %.1f;", color, avgH - 20);
-                Logger::info("colorThresholds[%d].maxH = %.1f;", color, (avgH + 20) - 360);
-            }
-        } else {
-            // 普通范围
-            Logger::info("colorThresholds[%d].minH = %.1f;", color, fmax(0, avgH - 20));
-            Logger::info("colorThresholds[%d].maxH = %.1f;", color, fmin(360, avgH + 20));
-        }
+    if (on) {
+        tcs.setInterrupt(false); // LED开
     } else {
-        // 其他颜色正常处理
-        Logger::info("colorThresholds[%d].minH = %.1f;", color, fmax(0, avgH - 20));
-        Logger::info("colorThresholds[%d].maxH = %.1f;", color, fmin(360, avgH + 20));
+        tcs.setInterrupt(true);  // LED关
     }
-    
-    Logger::info("colorThresholds[%d].minS = %.2f;", color, fmax(0, avgS * 0.8));
-    Logger::info("colorThresholds[%d].maxS = %.2f;", color, fmin(1.0, avgS * 1.2));
-    Logger::info("colorThresholds[%d].minV = %.2f;", color, fmax(0, avgV * 0.8));
-    Logger::info("colorThresholds[%d].maxV = %.2f;", color, fmin(1.0, avgV * 1.2));
 }
 
 void ColorSensor::printRawValues() {
@@ -463,4 +325,128 @@ void ColorSensor::printRawValues() {
     float h, s, v;
     rgbToHSV(r, g, b, &h, &s, &v);
     Logger::debug("HSV值: H=%.1f°, S=%.2f, V=%.2f", h, s, v);
-} 
+}
+
+#ifdef DEBUG_COLOR_SENSOR
+// 调试方法
+void ColorSensor::printDebugInfo() {
+    if (!initialized) {
+        Logger::warning("颜色传感器未初始化");
+        return;
+    }
+    
+    ColorCode color = readColor();
+    const char* colorName = "未知";
+    
+    switch (color) {
+        case COLOR_RED: colorName = "红色"; break;
+        case COLOR_BLUE: colorName = "蓝色"; break;
+        case COLOR_YELLOW: colorName = "黄色"; break;
+        case COLOR_WHITE: colorName = "白色"; break;
+        case COLOR_BLACK: colorName = "黑色"; break;
+        default: colorName = "未知"; break;
+    }
+    
+    float h, s, v;
+    rgbToHSV(r, g, b, &h, &s, &v);
+    
+    Logger::debug("=== 颜色传感器调试信息 ===");
+    Logger::debug("R: %d, G: %d, B: %d, C: %d", r, g, b, c);
+    Logger::debug("H: %.1f, S: %.2f, V: %.2f", h, s, v);
+    Logger::debug("检测到颜色: %s", colorName);
+    Logger::debug("==========================");
+}
+
+void ColorSensor::printRGBValues() {
+    if (!initialized) {
+        Logger::warning("颜色传感器未初始化");
+        return;
+    }
+    
+    Logger::debug("RGB原始值: R=%d, G=%d, B=%d, C=%d", r, g, b, c);
+    
+    float normR, normG, normB;
+    calculateNormalizedRGB(r, g, b, c, &normR, &normG, &normB);
+    Logger::debug("RGB归一化值: R=%.2f, G=%.2f, B=%.2f", normR, normG, normB);
+}
+
+void ColorSensor::printHSVValues() {
+    if (!initialized) {
+        Logger::warning("颜色传感器未初始化");
+        return;
+    }
+    
+    float h, s, v;
+    rgbToHSV(r, g, b, &h, &s, &v);
+    Logger::debug("HSV值: H=%.1f, S=%.2f, V=%.2f", h, s, v);
+}
+
+// 颜色校准功能保留在调试部分
+void ColorSensor::calibrateColor(ColorCode color) {
+    if (color <= COLOR_UNKNOWN || color >= COLOR_COUNT) {
+        Logger::error("无效的颜色代码: %d", color);
+        return;
+    }
+    
+    Logger::info("开始校准颜色: %d", color);
+    Logger::info("请将传感器放在目标颜色上...");
+    
+    // 持续读取20次获得平均值
+    uint32_t sumR = 0, sumG = 0, sumB = 0, sumC = 0;
+    float sumH = 0, sumS = 0, sumV = 0;
+    
+    for (int i = 0; i < 20; i++) {
+        update();
+        
+        sumR += r;
+        sumG += g;
+        sumB += b;
+        sumC += c;
+        
+        float h, s, v;
+        rgbToHSV(r, g, b, &h, &s, &v);
+        sumH += h;
+        sumS += s;
+        sumV += v;
+        
+        delay(50);
+    }
+    
+    uint16_t avgR = sumR / 20;
+    uint16_t avgG = sumG / 20;
+    uint16_t avgB = sumB / 20;
+    uint16_t avgC = sumC / 20;
+    
+    float avgH = sumH / 20.0f;
+    float avgS = sumS / 20.0f;
+    float avgV = sumV / 20.0f;
+    
+    // 打印校准结果
+    Logger::info("校准结果:");
+    Logger::info("RGB: (%d, %d, %d, %d)", avgR, avgG, avgB, avgC);
+    Logger::info("HSV: (%.1f, %.2f, %.2f)", avgH, avgS, avgV);
+    
+    // 调整阈值范围
+    float margin = 0.1; // 10%余量
+    
+    // 更新RGB阈值
+    colorThresholds[color].minR = avgR * (1 - margin);
+    colorThresholds[color].maxR = avgR * (1 + margin);
+    colorThresholds[color].minG = avgG * (1 - margin);
+    colorThresholds[color].maxG = avgG * (1 + margin);
+    colorThresholds[color].minB = avgB * (1 - margin);
+    colorThresholds[color].maxB = avgB * (1 + margin);
+    colorThresholds[color].minC = avgC * (1 - margin);
+    colorThresholds[color].maxC = avgC * (1 + margin);
+    
+    // 更新HSV阈值
+    colorThresholds[color].minH = fmax(0, avgH - 10);
+    colorThresholds[color].maxH = fmin(360, avgH + 10);
+    colorThresholds[color].minS = fmax(0, avgS - 0.1);
+    colorThresholds[color].maxS = fmin(1.0, avgS + 0.1);
+    colorThresholds[color].minV = fmax(0, avgV - 0.1);
+    colorThresholds[color].maxV = fmin(1.0, avgV + 0.1);
+    
+    Logger::info("校准完成!");
+}
+#endif 

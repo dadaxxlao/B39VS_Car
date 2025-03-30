@@ -1,7 +1,7 @@
 #include "Ultrasonic.h"
 #include "../Utils/Logger.h"
 
-UltrasonicSensor::UltrasonicSensor() : trigPin(0), echoPin(0) {
+UltrasonicSensor::UltrasonicSensor() : trigPin(0), echoPin(0), lastValidDistance(0) {
 }
 
 void UltrasonicSensor::init(uint8_t trig, uint8_t echo) {
@@ -34,7 +34,21 @@ float UltrasonicSensor::getDistance() {
     // 计算距离（厘米）
     float distance = calculateDistance(duration);
     
+    // 异常值过滤
+    if (distance <= 0 || distance > 400) {
+        // 返回上次有效值
+#ifdef DEBUG_ULTRASONIC
+        Logger::warning("超声波测量异常值: %.2f，使用上次值: %.2f", distance, lastValidDistance);
+#endif
+        return lastValidDistance;
+    }
+    
+    // 更新上次有效值
+    lastValidDistance = distance;
+    
+#ifdef DEBUG_ULTRASONIC
     Logger::debug("超声波距离: %.2f cm", distance);
+#endif
     
     return distance;
 }
@@ -52,7 +66,7 @@ float UltrasonicSensor::calculateDistance(unsigned long duration) {
     return duration * 0.034 / 2;
 }
 
-bool UltrasonicSensor::isObstacleDetected(float threshold) {
+bool UltrasonicSensor::isObstacleInRange(float threshold) {
     float distance = getDistance();
     
     // 检查是否有有效的距离测量
@@ -62,4 +76,30 @@ bool UltrasonicSensor::isObstacleDetected(float threshold) {
     
     // 检查是否在阈值范围内有障碍物
     return distance <= threshold;
-} 
+}
+
+#ifdef DEBUG_ULTRASONIC
+// 调试方法
+void UltrasonicSensor::printDebugInfo() {
+    float rawDistance = getRawDistance();
+    float filteredDistance = getDistance();
+    
+    Logger::debug("=== 超声波传感器调试信息 ===");
+    Logger::debug("原始距离: %.2f cm", rawDistance);
+    Logger::debug("过滤后距离: %.2f cm", filteredDistance);
+    Logger::debug("距离有效: %s", (rawDistance > 0 && rawDistance <= 400) ? "是" : "否");
+    Logger::debug("有障碍物(10cm内): %s", isObstacleInRange(10) ? "是" : "否");
+    Logger::debug("============================");
+}
+
+float UltrasonicSensor::getRawDistance() {
+    digitalWrite(trigPin, LOW);
+    delayMicroseconds(2);
+    digitalWrite(trigPin, HIGH);
+    delayMicroseconds(10);
+    digitalWrite(trigPin, LOW);
+    
+    unsigned long duration = pulseIn(echoPin, HIGH, 30000);
+    return calculateDistance(duration);
+}
+#endif 

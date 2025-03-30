@@ -21,27 +21,23 @@ void SensorManager::initAllSensors() {
     Logger::info("传感器初始化完成");
 }
 
-float SensorManager::getUltrasonicDistance() {
-    float distance = ultrasonicSensor.getDistance();
-    
-    // 简单的异常值过滤
-    if (distance <= 0 || distance > 400) {
-        // 测量值异常，返回上次有效值
-        Logger::warning("超声波测量异常值: %.2f，使用上次值: %.2f", distance, lastDistance);
-        return lastDistance;
-    }
-    
-    // 更新上次有效值
-    lastDistance = distance;
-    return distance;
+void SensorManager::update() {
+    // 更新所有传感器数据
+    colorSensor.update();
+    infraredSensor.update();
+    // 超声波按需更新，不在这里调用
+}
+
+float SensorManager::getDistance() {
+    return ultrasonicSensor.getDistance();
+}
+
+bool SensorManager::isObstacleDetected(float threshold) {
+    return ultrasonicSensor.isObstacleInRange(threshold);
 }
 
 int SensorManager::getLinePosition() {
     return infraredSensor.getLinePosition();
-}
-
-const uint16_t* SensorManager::getInfraredSensorValues() {
-    return infraredSensor.getAllSensorValues();
 }
 
 bool SensorManager::isLineDetected() {
@@ -54,31 +50,76 @@ ColorCode SensorManager::getColor() {
     // 颜色检测可能需要多次采样确认
     if (color != lastColor) {
         // 颜色变化，可能需要确认
-        // 这里简化处理，直接更新
+        // 这里保留简单实现，只更新lastColor
         lastColor = color;
     }
     
-    // 在此添加一些处理逻辑，确保颜色编码匹配新的定义
-    // 例如，如果colorSensor.readColor()返回的不是Config.h定义的枚举值，需要进行转换
-    
     return color;
+}
+
+#ifdef DEBUG_MODE
+// 调试方法实现
+void SensorManager::debugAllSensors() {
+    Logger::debug("====== 所有传感器状态 ======");
+    Logger::debug("距离: %.2f cm", getDistance());
+    Logger::debug("线位置: %d", getLinePosition());
+    Logger::debug("检测到线: %s", isLineDetected() ? "是" : "否");
+    
+    ColorCode color = getColor();
+    const char* colorName = "未知";
+    switch (color) {
+        case COLOR_RED: colorName = "红色"; break;
+        case COLOR_BLUE: colorName = "蓝色"; break;
+        case COLOR_YELLOW: colorName = "黄色"; break;
+        case COLOR_WHITE: colorName = "白色"; break;
+        case COLOR_BLACK: colorName = "黑色"; break;
+        default: colorName = "未知"; break;
+    }
+    Logger::debug("颜色: %s", colorName);
+    Logger::debug("============================");
+}
+
+void SensorManager::debugInfrared() {
+#ifdef DEBUG_INFRARED
+    infraredSensor.printDebugInfo();
+#else
+    Logger::warning("红外传感器调试模式未启用");
+#endif
+}
+
+void SensorManager::debugUltrasonic() {
+#ifdef DEBUG_ULTRASONIC
+    ultrasonicSensor.printDebugInfo();
+#else
+    Logger::warning("超声波传感器调试模式未启用");
+#endif
+}
+
+void SensorManager::debugColorSensor() {
+#ifdef DEBUG_COLOR_SENSOR
+    colorSensor.printDebugInfo();
+#else
+    Logger::warning("颜色传感器调试模式未启用");
+#endif
+}
+
+const uint16_t* SensorManager::getInfraredSensorValues() {
+    return infraredSensor.getAllSensorValues();
 }
 
 void SensorManager::getColorSensorValues(uint16_t* r, uint16_t* g, uint16_t* b, uint16_t* c) {
     colorSensor.getRGB(r, g, b, c);
 }
 
-void SensorManager::debugColorSensor() {
-    colorSensor.debugPrint();
+void SensorManager::setColorLED(bool on) {
+    colorSensor.setLED(on);
 }
 
-void SensorManager::update() {
-    // 定期更新所有传感器数据
-    // 这可以在主循环中调用，以确保数据的实时性
-    
-    // 更新颜色传感器数据
-    colorSensor.update();
-    
-    // 更新红外线传感器数据
-    infraredSensor.update();
-} 
+void SensorManager::calibrateColor(ColorCode color) {
+#ifdef DEBUG_COLOR_SENSOR
+    colorSensor.calibrateColor(color);
+#else
+    Logger::warning("颜色传感器调试模式未启用，无法校准");
+#endif
+}
+#endif 
