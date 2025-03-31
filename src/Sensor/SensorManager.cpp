@@ -28,10 +28,13 @@ bool SensorManager::initAllSensors() {
     }
     
     // 初始化颜色传感器
+    /*
     if (!colorSensor.begin(COLOR_SENSOR_ADDR)) {
         Logger::error("SensorMgr", "颜色传感器初始化失败");
         allSuccess = false;
     }
+    */
+    
     
     allSensorsInitialized = allSuccess;
     

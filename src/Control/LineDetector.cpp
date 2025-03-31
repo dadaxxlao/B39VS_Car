@@ -45,7 +45,7 @@ bool LineDetector::isForwardTee(const uint16_t* sensorValues) {
 // 新增：静态路口分类方法
 JunctionType LineDetector::classifyStoppedJunction(const uint16_t* staticSensorValues, LineFollower::TriggerType triggerType) {
     // 检查是否为中心模式 (xxx00xxx)
-    bool centerMode = (staticSensorValues[3] == 0 || staticSensorValues[4] == 0);
+    bool centerMode = (staticSensorValues[2] == 0|| staticSensorValues[3] == 0 || staticSensorValues[4] == 0 || staticSensorValues[5] == 0);
     
     // 检查是否为全白模式 (11111111)
     bool allWhite = true;

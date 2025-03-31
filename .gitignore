@@ -3,8 +3,4 @@
 .vscode/c_cpp_properties.json
 .vscode/launch.json
 .vscode/ipch
-src/Test/**
-Design.md
-get-platformio.py
-output.txt
-esp_firmware
+
