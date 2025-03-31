@@ -46,7 +46,8 @@
 
 // I2C地址
 #define INFRARED_ARRAY_ADDR  0x12
-#define COLOR_SENSOR_ADDR    0x29
+// #define COLOR_SENSOR_ADDR    0x29  // 旧的TCS34725颜色传感器地址
+#define GANWEI_COLOR_SENSOR_ADDR 0x4F  // 感为颜色传感器地址 (7位地址，假设所有跳线都设置为1)
 
 // 运动参数
 #define MAX_SPEED            255

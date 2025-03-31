@@ -5,7 +5,7 @@ LineFollower::LineFollower(SensorManager& sensorManager)
     : m_sensorManager(sensorManager) // 初始化 SensorManager
     , m_Kp(1.0)
     , m_Ki(0.0)
-    , m_Kd(1.0)
+    , m_Kd(0.0)
     , m_lastError(0)
     , m_integral(0)
     // 移除丢线处理参数，由NavigationController接管
@@ -95,7 +95,7 @@ LineFollower::TriggerType LineFollower::update() {
     m_lastTurnAmount = turnAmount;
     
     // PID计算日志
-    Logger::debug("LineFoll", "PID计算: 位置=%d, 误差=%d, 积分=%d, 微分=%d, 转向量=%.2f",
+    Logger::debug("LineFoll", "PID计算: 位置=%d, 误差=%d, 积分=%d, 微分=%d, 转向量=%f",
                  position, error, m_integral, errorChange, m_lastTurnAmount);
     
     // 返回TRIGGER_NONE表示没有触发特殊条件

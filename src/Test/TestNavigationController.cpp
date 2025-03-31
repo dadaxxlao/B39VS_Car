@@ -48,8 +48,11 @@ LineFollower lineFollower(sensorManager);
 NavigationController navigationController(sensorManager, motionController, lineFollower);
 
 // --- 测试配置 ---
-const int LOOP_DELAY_MS = 50; // 主循环延迟（毫秒）
+const int LOOP_DELAY_MS = 30; // 主循环延迟（毫秒）
                               // 根据性能和观察清晰度需求调整
+
+// --- 函数声明 ---
+const char* junctionTypeToString(JunctionType type);
 
 // --- 初始化函数 ---
 void setup() {
@@ -124,31 +127,34 @@ void loop() {
   if (navState == NAV_AT_JUNCTION) {
     JunctionType detectedJunction = navigationController.getDetectedJunctionType();
 
-    // --- 测试逻辑：模拟StateMachine决策 ---
-    // 记录检测到的路口及其类型
-    Logger::info("NavControllerTest", ">>> 导航报告路口：类型=%d <<<", detectedJunction);
-
-    // 在实际系统中，StateMachine会使用'detectedJunction'和自己的
-    // 高层状态（如OBJECT_FIND）来决定实际的下一步行动
-    // （如左转、右转、抓取物体等）
-    // 这里，我们只是模拟确认路口类型
-    Logger::info("NavControllerTest", "测试动作：已确认路口 %d。准备接收下一个指令。", detectedJunction);
+    // 停止车辆
+    motionController.emergencyStop();
     
-    // 您可以在此添加简短的电机动作用于测试时的视觉反馈，
-    // 但确保它们不会显著干扰下一个导航步骤
-    // 示例：
-    if (detectedJunction == T_LEFT) {
-      motionController.spinLeft(50); delay(50); motionController.emergencyStop(); while(true);
-    } else if (detectedJunction == T_RIGHT) {
-      motionController.spinRight(50); delay(50); motionController.emergencyStop(); while(true);
+    // 记录检测到的路口及其类型
+    Serial.print("\n检测到路口：");
+    Serial.println(junctionTypeToString(detectedJunction));
+    Serial.println("发送任意字符继续...");
+    
+    // 清空串口缓冲区
+    while(Serial.available()) {
+      Serial.read();
     }
-
-    // 关键步骤：在（模拟的）StateMachine处理完路口后，
-    // 告诉NavigationController返回巡线模式
-    Logger::info("NavControllerTest", "测试动作：指示NavigationController恢复巡线。");
+    
+    // 阻塞等待，直到接收到任意串口输入
+    while(!Serial.available()) {
+      delay(10); // 短延迟，避免过度消耗CPU
+    }
+    
+    // 清空接收到的数据
+    while(Serial.available()) {
+      Serial.read();
+    }
+    
+    // 收到命令后继续
+    Serial.println("继续运行...");
     navigationController.resumeFollowing();
-    Logger::info("NavControllerTest", "-----------------------------------------"); // 分隔符，便于清晰观察
-
+    
+    Logger::info("NavControllerTest", "-----------------------------------------");
   } else if (navState == NAV_ERROR) {
     // 如果NavigationController进入错误状态（如传感器故障、丢线超时）
     Logger::error("NavControllerTest", "导航控制器处于NAV_ERROR状态！测试循环停止。");
@@ -173,6 +179,21 @@ void loop() {
   // 这可能使串口输出难以阅读并可能饿死其他进程（如果有的话）
   // 根据观察到的性能和日志可读性调整此值
   delay(LOOP_DELAY_MS); 
+}
+
+// 将枚举JunctionType转换为可读字符串
+const char* junctionTypeToString(JunctionType type) {
+  switch(type) {
+    case NO_JUNCTION: return "无路口";
+    case T_LEFT: return "T型左路口";
+    case T_RIGHT: return "T型右路口";
+    case T_FORWARD: return "T型前路口";
+    case CROSS: return "十字路口";
+    case LEFT_TURN: return "左转弯";
+    case RIGHT_TURN: return "右转弯";
+    case END_OF_LINE: return "线路终点";
+    default: return "未知路口";
+  }
 }
 
 #endif // TEST_NAVIGATION_CONTROLLER
