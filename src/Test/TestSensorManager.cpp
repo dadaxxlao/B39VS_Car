@@ -2,7 +2,9 @@
 #include <Arduino.h>
 #include <Wire.h>
 #include "../Sensor/SensorManager.h"
+#include "../Sensor/SensorCommon.h"
 #include "../Utils/Config.h"
+#include "../Utils/Logger.h"
 
 SensorManager sensorManager;
 
@@ -25,84 +27,86 @@ const char* colorToString(ColorCode color) {
 }
 
 void setup() {
-  // 初始化串口
+  // 初始化日志系统
+  Logger::init();
+  
+  // 设置串口波特率为9600，与测试README文档相符
   Serial.begin(9600);
   while (!Serial) {
     ; // 等待串口连接
   }
   
-  Serial.println("传感器管理器综合测试程序");
+  // 设置日志级别
+  Logger::setLogLevel(COMM_SERIAL, LOG_LEVEL_DEBUG);
+  Logger::setLogTag(COMM_SERIAL, "TestSensor");
+  
+  Logger::info("传感器管理器综合测试程序");
   
   // 初始化所有传感器
-  sensorManager.initAllSensors();
+  if (sensorManager.initAllSensors()) {
+    Logger::info("所有传感器初始化成功");
+  } else {
+    Logger::warning("部分传感器初始化失败，测试可能不完整");
+  }
   
-  Serial.println("所有传感器初始化完成");
   delay(1000); // 等待传感器稳定
 }
 
 void loop() {
   // 更新所有传感器数据
-  sensorManager.update();
+  sensorManager.updateAll();
   
   // 测试超声波传感器
-  Serial.println("======= 超声波传感器 =======");
-  float distance = sensorManager.getUltrasonicDistance();
-  Serial.print("距离: ");
-  Serial.print(distance);
-  Serial.println(" cm");
+  Logger::info("======= 超声波传感器 =======");
+  float distance;
+  if (sensorManager.getDistanceCm(distance)) {
+    Logger::info("距离: %.2f cm", distance);
+  } else {
+    Logger::warning("无法获取有效的距离值");
+  }
   
   // 测试红外传感器
-  Serial.println("======= 红外传感器 =======");
-  int linePos = sensorManager.getLinePosition();
-  bool lineDetected = sensorManager.isLineDetected();
-  
-  Serial.print("线位置: ");
-  Serial.print(linePos);
-  Serial.print(" (");
-  if (linePos < -50) {
-    Serial.println("偏左)");
-  } else if (linePos > 50) {
-    Serial.println("偏右)");
+  Logger::info("======= 红外传感器 =======");
+  int linePos;
+  if (sensorManager.getLinePosition(linePos)) {
+    Logger::info("线位置: %d (%s)", linePos, 
+                linePos < -50 ? "偏左" : (linePos > 50 ? "偏右" : "居中"));
   } else {
-    Serial.println("居中)");
+    Logger::warning("无法获取有效的线位置");
+    linePos = 0; // 默认值用于后续处理
   }
   
-  Serial.print("线检测: ");
-  Serial.println(lineDetected ? "检测到线" : "未检测到线");
+  bool lineDetected = sensorManager.isLineDetected();
+  Logger::info("线检测: %s", lineDetected ? "检测到线" : "未检测到线");
   
   // 获取并打印红外传感器原始值
-  const uint16_t* irValues = sensorManager.getInfraredSensorValues();
-  Serial.print("传感器值: [");
-  for (int i = 0; i < 8; i++) {
-    Serial.print(irValues[i]);
-    if (i < 7) Serial.print(", ");
+  uint16_t irValues[8];
+  if (sensorManager.getInfraredSensorValues(irValues)) {
+    Logger::info("传感器值: [%d, %d, %d, %d, %d, %d, %d, %d]", 
+                irValues[0], irValues[1], irValues[2], irValues[3], 
+                irValues[4], irValues[5], irValues[6], irValues[7]);
+  } else {
+    Logger::warning("无法获取有效的红外传感器值");
   }
-  Serial.println("]");
   
   // 测试颜色传感器
-  Serial.println("======= 颜色传感器 =======");
+  Logger::info("======= 颜色传感器 =======");
   ColorCode color = sensorManager.getColor();
-  Serial.print("检测到颜色: ");
-  Serial.println(colorToString(color));
+  Logger::info("检测到颜色: %s", colorToString(color));
   
   // 获取并打印RGB原始值
   uint16_t r, g, b, c;
-  sensorManager.getColorSensorValues(&r, &g, &b, &c);
-  
-  Serial.print("R: ");
-  Serial.print(r);
-  Serial.print(", G: ");
-  Serial.print(g);
-  Serial.print(", B: ");
-  Serial.print(b);
-  Serial.print(", C: ");
-  Serial.println(c);
+  if (sensorManager.getColorSensorValues(r, g, b, c)) {
+    Logger::info("R: %d, G: %d, B: %d, C: %d", r, g, b, c);
+  } else {
+    Logger::warning("无法获取有效的颜色传感器值");
+  }
   
   // 打印详细调试信息
-  sensorManager.debugColorSensor();
+  sensorManager.printSensorDebugInfo(SensorType::COLOR);
   
   // 分隔线
-  Serial.println("------------------------------");
+  Logger::info("------------------------------");
   
   delay(1500); // 每1.5秒更新一次
 } 

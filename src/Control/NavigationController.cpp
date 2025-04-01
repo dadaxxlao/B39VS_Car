@@ -52,7 +52,7 @@ void NavigationController::applyPIDControl(float turnAmount, int baseSpeed) {
         m_motionController.spinLeft(calculatedTurnSpeed);
     }
     
-    Logger::debug("NavCtrl", "PID应用: 转向量=%.2f -> 动作=%s, 速度=%d", 
+    Logger::debug("NavCtrl", "PID应用: 转向量=%f -> 动作=%s, 速度=%d", 
                  turnAmount, actionStr, calculatedTurnSpeed);
 }
 
@@ -125,7 +125,7 @@ void NavigationController::update() {
                     m_lineLostStartTime = currentTime;
                     
                     // 使用最后的控制量继续行驶
-                    Logger::info("NavCtrl", "线路丢失! 开始恢复 (最后转向量: %.2f)", m_lastKnownTurnAmount);
+                    Logger::info("NavCtrl", "线路丢失! 开始恢复 (最后转向量: %f)", m_lastKnownTurnAmount);
                     if (abs(m_lastKnownTurnAmount) > 0.2) {
                         // 根据转向量的符号决定转向方向
                         if (m_lastKnownTurnAmount > 0) {

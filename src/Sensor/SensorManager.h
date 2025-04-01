@@ -88,12 +88,11 @@ public:
     // 获取颜色传感器检测的颜色
     ColorCode getColor();
     
-    // 获取颜色传感器原始值到提供的引用参数
-    bool getColorSensorValues(uint16_t& r, uint16_t& g, uint16_t& b, uint16_t& c);
+    // 获取颜色传感器RGB值到提供的引用参数
+    bool getColorSensorRGB(uint8_t& r, uint8_t& g, uint8_t& b);
     
-    // 获取颜色传感器原始值 - 向后兼容方法
-    // DEPRECATED: 请使用 getColorSensorValues(uint16_t& r, uint16_t& g, uint16_t& b, uint16_t& c) 替代
-    void getColorSensorValues(uint16_t* r, uint16_t* g, uint16_t* b, uint16_t* c);
+    // 获取颜色传感器HSL值到提供的引用参数
+    bool getColorSensorHSL(uint8_t& h, uint8_t& s, uint8_t& l);
     
     // === 调试功能 ===
     
@@ -105,6 +104,7 @@ public:
     
     // 打印颜色传感器调试信息 - 向后兼容方法
     // DEPRECATED: 请使用 printSensorDebugInfo(SensorType::COLOR) 替代
+    [[deprecated("请使用 printSensorDebugInfo(SensorType::COLOR) 替代")]]
     void debugColorSensor();
     
     // === 老接口（不推荐，但保留兼容性） ===

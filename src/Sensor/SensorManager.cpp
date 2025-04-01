@@ -28,13 +28,10 @@ bool SensorManager::initAllSensors() {
     }
     
     // 初始化颜色传感器
-    /*
-    if (!colorSensor.begin(COLOR_SENSOR_ADDR)) {
+    if (!colorSensor.begin()) {
         Logger::error("SensorMgr", "颜色传感器初始化失败");
         allSuccess = false;
     }
-    */
-    
     
     allSensorsInitialized = allSuccess;
     
@@ -71,7 +68,7 @@ SensorStatus SensorManager::getSensorHealth(SensorType type) {
         case SensorType::INFRARED_ARRAY:
             return infraredSensor.checkHealth();
         case SensorType::COLOR:
-            return SensorStatus::UNKNOWN; // 待实现
+            return colorSensor.checkHealth();
         default:
             return SensorStatus::UNKNOWN;
     }
@@ -94,7 +91,12 @@ bool SensorManager::checkAllSensorsHealth() {
         allHealthy = false;
     }
     
-    // 检查颜色传感器 (待实现)
+    // 检查颜色传感器
+    SensorStatus colorStatus = getSensorHealth(SensorType::COLOR);
+    if (colorStatus != SensorStatus::OK) {
+        Logger::warning("SensorMgr", "颜色传感器状态异常: %d", (int)colorStatus);
+        allHealthy = false;
+    }
     
     return allHealthy;
 }
@@ -120,17 +122,8 @@ void SensorManager::updateInfrared() {
 }
 
 void SensorManager::updateColor() {
-    colorSensor.update();
-    
-    // 更新颜色
-    ColorCode color = colorSensor.readColor();
-    
-    // 颜色检测可能需要多次采样确认
-    if (color != lastValidColor) {
-        // 颜色变化，可能需要确认
-        // 这里简化处理，直接更新
-        lastValidColor = color;
-    }
+    // 颜色传感器不需要主动调用update，由各方法自动更新
+    // 保留此方法以兼容现有代码
 }
 
 bool SensorManager::getDistanceCm(float& distance) {
@@ -238,43 +231,35 @@ ColorCode SensorManager::getColor() {
         return COLOR_UNKNOWN;
     }
     
-    // 颜色传感器待重构，暂时使用旧方法
-    ColorCode color = colorSensor.readColor();
+    // 读取颜色
+    ColorCode current_color = colorSensor.getColor();
     
-    // 颜色检测可能需要多次采样确认
-    if (color != lastValidColor) {
-        // 颜色变化，可能需要确认
-        // 这里简化处理，直接更新
-        lastValidColor = color;
-    }
+    // 更新缓存的颜色值
+    lastValidColor = current_color;
     
     return lastValidColor;
 }
 
-bool SensorManager::getColorSensorValues(uint16_t& r, uint16_t& g, uint16_t& b, uint16_t& c) {
+bool SensorManager::getColorSensorRGB(uint8_t& r, uint8_t& g, uint8_t& b) {
     // 检查传感器是否初始化
     if (!colorSensor.isInitialized()) {
         Logger::warning("SensorMgr", "尝试从未初始化的颜色传感器获取RGB值");
         return false;
     }
     
-    // 颜色传感器待重构，暂时使用旧方法
-    colorSensor.getRGB(&r, &g, &b, &c);
-    return true;
+    // 调用颜色传感器的RGB方法
+    return colorSensor.getColorRGB(r, g, b);
 }
 
-void SensorManager::getColorSensorValues(uint16_t* r, uint16_t* g, uint16_t* b, uint16_t* c) {
-    // 向后兼容方法
+bool SensorManager::getColorSensorHSL(uint8_t& h, uint8_t& s, uint8_t& l) {
+    // 检查传感器是否初始化
     if (!colorSensor.isInitialized()) {
-        Logger::warning("SensorMgr", "尝试从未初始化的颜色传感器获取RGB值 (deprecate)");
-        // 清零输出参数
-        if (r) *r = 0;
-        if (g) *g = 0;
-        if (b) *b = 0;
-        if (c) *c = 0;
-        return;
+        Logger::warning("SensorMgr", "尝试从未初始化的颜色传感器获取HSL值");
+        return false;
     }
-    colorSensor.getRGB(r, g, b, c);
+    
+    // 调用颜色传感器的HSL方法
+    return colorSensor.getColorHSL(h, s, l);
 }
 
 void SensorManager::printSensorDebugInfo(SensorType type) {

@@ -3,6 +3,7 @@
 #include <Wire.h>
 #include "../Motor/MotionController.h"
 #include "../Sensor/SensorManager.h"
+#include "../Sensor/SensorCommon.h"
 #include "../Control/LineDetector.h"
 #include "../Control/LineFollower.h"
 #include "../Utils/Config.h"
@@ -53,19 +54,19 @@ const char* junctionTypeToString(JunctionType junction) {
 void executeJunctionAction(JunctionType junction) {
     switch (junction) {
         case T_LEFT:
-            Logger::info("检测到左T字路口，继续直行");
+            Logger::info("JuncTest", "检测到左T字路口，继续直行");
             break;
             
         case T_RIGHT:
-            Logger::info("检测到右T字路口，继续直行");
+            Logger::info("JuncTest", "检测到右T字路口，继续直行");
             break;
             
         case LEFT_TURN:
-            Logger::info("检测到左转弯，继续直行");
+            Logger::info("JuncTest", "检测到左转弯，继续直行");
             break;
             
         case RIGHT_TURN:
-            Logger::info("检测到右转弯，继续直行");
+            Logger::info("JuncTest", "检测到右转弯，继续直行");
             break;
             
         default:
@@ -81,7 +82,11 @@ void executeJunctionAction(JunctionType junction) {
 // 显示传感器状态
 void displaySensorStatus() {
     // 获取传感器值
-    const uint16_t* values = sensorManager.getInfraredSensorValues();
+    uint16_t values[8];
+    if (!sensorManager.getInfraredSensorValues(values)) {
+        Logger::warning("JuncTest", "无法获取有效的红外传感器值");
+        return;
+    }
     
     // 打印传感器值
     Serial.print("传感器值: [");
@@ -92,23 +97,28 @@ void displaySensorStatus() {
     Serial.println("]");
     
     // 打印线位置
-    int position = sensorManager.getInfraredArray().getLinePosition();
-    Serial.print("线位置: ");
-    Serial.print(position);
-    
-    // 显示位置指示
-    Serial.print(" (");
-    if (position < -40) {
-        Serial.println("偏左)");
-    } else if (position > 40) {
-        Serial.println("偏右)");
+    int position;
+    if (sensorManager.getLinePosition(position)) {
+        Serial.print("线位置: ");
+        Serial.print(position);
+        
+        // 显示位置指示
+        Serial.print(" (");
+        if (position < -40) {
+            Serial.println("偏左)");
+        } else if (position > 40) {
+            Serial.println("偏右)");
+        } else {
+            Serial.println("居中)");
+        }
     } else {
-        Serial.println("居中)");
+        Serial.println("无法获取有效的线位置");
     }
     
     // 显示是否检测到线
+    bool lineDetected = sensorManager.isLineDetected();
     Serial.print("线检测: ");
-    Serial.println(sensorManager.getInfraredArray().isLineDetected() ? "检测到线" : "未检测到线");
+    Serial.println(lineDetected ? "检测到线" : "未检测到线");
 }
 
 // 处理串口命令
@@ -236,12 +246,15 @@ void processCommand(String command) {
 }
 
 void setup() {
-    // 初始化串口
+    // 初始化日志系统
+    Logger::init();
+    
+    // 设置串口波特率为9600，与测试README文档相符
     Serial.begin(9600);
     
-    // 设置日志级别
-    Logger::init();
-    Logger::setLogLevel(LOG_LEVEL_INFO);
+    // 设置日志级别和标签
+    Logger::setLogLevel(COMM_SERIAL, LOG_LEVEL_INFO);
+    Logger::setLogTag(COMM_SERIAL, "JuncTest");
     
     // 清空串口缓冲区
     while(Serial.available()) {
@@ -258,23 +271,30 @@ void setup() {
     Wire.begin();
     
     // 初始化传感器
-    sensorManager.initAllSensors();
+    if (sensorManager.initAllSensors()) {
+        Logger::info("JuncTest", "所有传感器初始化成功");
+    } else {
+        Logger::error("JuncTest", "部分传感器初始化失败，测试可能不完整");
+    }
     
     // 初始化运动控制器
     motionController.init();
+    Logger::info("JuncTest", "运动控制器初始化成功");
     
     // 初始化巡线控制器
-    lineFollower = new LineFollower(sensorManager.getInfraredArray());
+    // 假设LineFollower已被修改为接受SensorManager而不是InfraredArray
+    lineFollower = new LineFollower(sensorManager);
     lineFollower->init();
     lineFollower->setPIDParams(1.0, 0.0, 1.0); // 使用更优的PID参数
     lineFollower->setBaseSpeed(FOLLOW_SPEED);
+    Logger::info("JuncTest", "巡线控制器初始化成功");
     
     // 初始化历史记录数组
     for (int i = 0; i < MAX_JUNCTION_HISTORY; i++) {
         junctionHistory[i] = NO_JUNCTION;
     }
     
-    Logger::info("初始化完成，准备开始测试");
+    Logger::info("JuncTest", "初始化完成，准备开始测试");
     delay(2000); // 增加初始化后的稳定时间
     
     // 再次清空串口缓冲区
@@ -285,6 +305,9 @@ void setup() {
 }
 
 void loop() {
+    // 更新所有传感器数据
+    sensorManager.updateAll();
+    
     // 处理串口命令
     if (Serial.available() > 0) {
         String command = Serial.readStringUntil('\n');
@@ -366,11 +389,15 @@ void loop() {
     
     // 根据测试状态执行相应操作
     if (testRunning) {
-        // 更新传感器数据
-        sensorManager.update();
+        // 获取红外传感器值
+        uint16_t irValues[8];
+        if (!sensorManager.getInfraredSensorValues(irValues)) {
+            Logger::warning("JuncTest", "无法获取红外传感器数据");
+            return;
+        }
         
         // 检测路口
-        JunctionType junction = lineDetector.detectJunction(sensorManager.getInfraredSensorValues());
+        JunctionType junction = lineDetector.detectJunction(irValues);
         
         // 路口检测和处理
         unsigned long currentTime = millis();
@@ -378,7 +405,7 @@ void loop() {
             (currentTime - junctionLastDetectedTime > JUNCTION_DETECTION_COOLDOWN)) {
             
             // 检测到新的路口
-            Logger::info("检测到路口: %s", junctionTypeToString(junction));
+            Logger::info("JuncTest", "检测到路口: %s", junctionTypeToString(junction));
             
             // 只记录路口，不执行转弯动作
             executeJunctionAction(junction);

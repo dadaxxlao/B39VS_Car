@@ -45,7 +45,7 @@ bool LineDetector::isForwardTee(const uint16_t* sensorValues) {
 // 新增：静态路口分类方法
 JunctionType LineDetector::classifyStoppedJunction(const uint16_t* staticSensorValues, LineFollower::TriggerType triggerType) {
     // 检查是否为中心模式 (xxx00xxx)
-    bool centerMode = (staticSensorValues[2] == 0|| staticSensorValues[3] == 0 || staticSensorValues[4] == 0 || staticSensorValues[5] == 0);
+    bool blackMode = (staticSensorValues[0] == 0|| staticSensorValues[1] == 0 || staticSensorValues[2] == 0 || staticSensorValues[3] == 0 || staticSensorValues[4] == 0 || staticSensorValues[5] == 0 || staticSensorValues[6] == 0 || staticSensorValues[7] == 0);
     
     // 检查是否为全白模式 (11111111)
     bool allWhite = true;
@@ -64,13 +64,13 @@ JunctionType LineDetector::classifyStoppedJunction(const uint16_t* staticSensorV
     
     // 记录分类开始的日志
     Logger::debug("LineDet", "静态分类: 传感器=%s, 触发类型=%d, 中心模式=%s, 全白=%s",
-                 sensorStr, triggerType, centerMode ? "是" : "否", allWhite ? "是" : "否");
+                 sensorStr, triggerType, blackMode ? "是" : "否", allWhite ? "是" : "否");
     
     JunctionType resultJunctionType = NO_JUNCTION;
     
     // 根据触发类型和传感器模式分类
     if (triggerType == LineFollower::TRIGGER_LEFT_EDGE) {
-        if (centerMode) {
+        if (blackMode) {
             resultJunctionType = T_LEFT;
             Logger::info("LineDet", "分类结果: T_LEFT（左边缘触发+中心线）");
         } else if (allWhite) {
@@ -78,7 +78,7 @@ JunctionType LineDetector::classifyStoppedJunction(const uint16_t* staticSensorV
             Logger::info("LineDet", "分类结果: LEFT_TURN（左边缘触发+全白）");
         }
     } else if (triggerType == LineFollower::TRIGGER_RIGHT_EDGE) {
-        if (centerMode) {
+        if (blackMode) {
             resultJunctionType = T_RIGHT;
             Logger::info("LineDet", "分类结果: T_RIGHT（右边缘触发+中心线）");
         } else if (allWhite) {

@@ -2,14 +2,15 @@
 #include <Arduino.h>
 #include <Wire.h>
 #include "../Motor/MotionController.h"
-#include "../Sensor/Infrared.h"
+#include "../Sensor/SensorManager.h"
+#include "../Sensor/SensorCommon.h"
 #include "../Control/LineFollower.h"
 #include "../Utils/Config.h"
 #include "../Utils/Logger.h"
 
-// 创建运动控制器和红外传感器实例
+// 创建运动控制器和传感器管理器实例
 MotionController motionController;
-InfraredArray infraredSensor;
+SensorManager sensorManager;
 LineFollower* lineFollower; // 使用指针，因为需要在setup中初始化
 
 // 测试配置
@@ -24,44 +25,34 @@ bool newCommandReceived = false;
 // 显示传感器状态
 void displaySensorStatus() {
   // 获取传感器值
-  const uint16_t* values = infraredSensor.getAllSensorValues();
-  
-  // 打印传感器值
-  Serial.print("传感器值: [");
-  for (int i = 0; i < 8; i++) {
-    Serial.print(values[i]);
-    if (i < 7) Serial.print(", ");
+  uint16_t values[8];
+  if (sensorManager.getInfraredSensorValues(values)) {
+    Logger::info("传感器值: [%d, %d, %d, %d, %d, %d, %d, %d]", 
+               values[0], values[1], values[2], values[3], 
+               values[4], values[5], values[6], values[7]);
+  } else {
+    Logger::warning("无法获取有效的红外传感器值");
+    return;
   }
-  Serial.println("]");
   
   // 打印线位置
-  int position = infraredSensor.getLinePosition();
-  Serial.print("线位置: ");
-  Serial.print(position);
-  
-  // 显示位置指示
-  Serial.print(" (");
-  if (position < -40) {
-    Serial.println("偏左)");
-  } else if (position > 40) {
-    Serial.println("偏右)");
+  int position;
+  if (sensorManager.getLinePosition(position)) {
+    Logger::info("线位置: %d (%s)", position, 
+               position < -40 ? "偏左" : (position > 40 ? "偏右" : "居中"));
   } else {
-    Serial.println("居中)");
+    Logger::warning("无法获取有效的线位置");
   }
   
   // 显示是否检测到线
-  Serial.print("线检测: ");
-  Serial.println(infraredSensor.isLineDetected() ? "检测到线" : "未检测到线");
+  bool lineDetected = sensorManager.isLineDetected();
+  Logger::info("线检测: %s", lineDetected ? "检测到线" : "未检测到线");
   
   // 如果当前处于丢线状态，显示丢线时间
   unsigned long lineLastDetectedTime = 0; // 这只是为了显示，实际值在LineFollower类内部
   if (lineLastDetectedTime > 0) {
     unsigned long lostTime = millis() - lineLastDetectedTime;
-    Serial.print("丢线时间: ");
-    Serial.print(lostTime);
-    Serial.print("/");
-    Serial.print(lineFollower->getMaxLineLostTime());
-    Serial.println("ms");
+    Logger::info("丢线时间: %lu/%lu ms", lostTime, lineFollower->getMaxLineLostTime());
   }
 }
 
@@ -266,15 +257,18 @@ void processCommand(String command) {
 }
 
 void setup() {
-  // 初始化串口
+  // 初始化日志系统
+  Logger::init();
+  
+  // 设置串口波特率为9600，与测试README文档相符
   Serial.begin(9600);
   while (!Serial) {
     ; // 等待串口连接
   }
   
-  // 初始化Logger
-  Logger::init();
-  Logger::setLogLevel(LOG_LEVEL_DEBUG);
+  // 设置日志级别和标签
+  Logger::setLogLevel(COMM_SERIAL, LOG_LEVEL_DEBUG);
+  Logger::setLogTag(COMM_SERIAL, "LineFollow");
   
   Serial.println("\n===== 麦克纳姆轮小车巡线测试程序 =====");
   Serial.println("输入'help'获取命令列表");
@@ -282,23 +276,22 @@ void setup() {
   // 初始化I2C
   Wire.begin();
   
-  // 初始化红外传感器
-  if (infraredSensor.begin(INFRARED_ARRAY_ADDR)) {
-    Serial.println("红外传感器初始化成功");
+  // 初始化所有传感器
+  if (sensorManager.initAllSensors()) {
+    Logger::info("所有传感器初始化成功");
   } else {
-    Serial.println("红外传感器初始化失败，请检查连接");
-    Serial.println("测试程序无法继续运行");
-    while (1); // 停止执行
+    Logger::error("部分传感器初始化失败，测试可能不完整");
   }
   
   // 初始化运动控制器
   motionController.init();
-  Serial.println("运动控制器初始化成功");
+  Logger::info("运动控制器初始化成功");
   
   // 创建并初始化巡线控制器
-  lineFollower = new LineFollower(infraredSensor);
+  // 假设LineFollower已被修改为接受SensorManager而不是InfraredArray
+  lineFollower = new LineFollower(sensorManager);
   lineFollower->init();
-  Serial.println("巡线控制器初始化成功");
+  Logger::info("巡线控制器初始化成功");
   
   // 等待传感器稳定
   delay(1000);
@@ -307,6 +300,9 @@ void setup() {
 }
 
 void loop() {
+  // 更新所有传感器数据
+  sensorManager.updateAll();
+  
   // 处理串口输入
   while (Serial.available() > 0) {
     char c = Serial.read();
