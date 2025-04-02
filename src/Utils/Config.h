@@ -10,17 +10,17 @@
 #define MOTOR_FL_IN1         3
 #define MOTOR_FL_IN2         4
 // 右前电机 (FR)
-#define MOTOR_FR_PWM         10
+#define MOTOR_FR_PWM         7
 #define MOTOR_FR_IN1         5
 #define MOTOR_FR_IN2         6
 // 左后电机 (RL)
-#define MOTOR_RL_PWM         11
-#define MOTOR_RL_IN1         7
-#define MOTOR_RL_IN2         8
+#define MOTOR_RL_PWM         8
+#define MOTOR_RL_IN1         9
+#define MOTOR_RL_IN2         10
 // 右后电机 (RR)
 #define MOTOR_RR_PWM         13
-#define MOTOR_RR_IN1         14
-#define MOTOR_RR_IN2         15
+#define MOTOR_RR_IN1         11
+#define MOTOR_RR_IN2         12
 
 // RGB LED灯环引脚
 #define RGB_LED_PIN          6
