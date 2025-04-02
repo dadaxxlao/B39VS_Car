@@ -91,16 +91,24 @@ enum ColorCode {
     COLOR_COUNT   // 总颜色数量
 };
 
-// 系统状态
+/**
+ * 系统状态枚举
+ */
 enum SystemState {
-    INITIALIZED,     // 初始化状态
-    OBJECT_FIND,     // 寻找物块状态
-    OBJECT_GRAB,     // 抓取物块状态
-    OBJECT_LOCATE,   // 定位放置区域状态
-    OBJECT_PLACING,  // 放置物块状态
-    RETURN_BASE,     // 返回基地状态
-    END,             // 任务结束状态
-    ERROR_STATE      // 错误状态
+    INITIALIZED,        // 初始化状态
+    OBJECT_FIND,        // 寻找物块
+    ULTRASONIC_DETECT,  // 超声波检测
+    ZONE_JUDGE,         // 区域判断
+    ZONE_TO_BASE,       // 前往基地
+    OBJECT_GRAB,        // 抓取物体
+    OBJECT_PLACING,     // 放置物体
+    COUNT_INTERSECTION, // 计数路口
+    OBJECT_RELEASE,     // 释放物体
+    ERGODIC_JUDGE,      // 遍历判断
+    RETURN_BASE,        // 返回基地
+    BASE_ARRIVE,        // 到达基地
+    END,                // 结束
+    ERROR_STATE         // 错误状态
 };
 
 // OBJECT_LOCATE子状态
