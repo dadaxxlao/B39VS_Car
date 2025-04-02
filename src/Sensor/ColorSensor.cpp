@@ -20,15 +20,15 @@ void ColorSensor::initColorThresholds() {
     
     // 红色阈值 (H接近0或接近240)
     colorThresholds[COLOR_RED].minH = 220;
-    colorThresholds[COLOR_RED].maxH = 20; // 跨0判断
+    colorThresholds[COLOR_RED].maxH = 5; // 跨0判断
     colorThresholds[COLOR_RED].minS = 100;
     colorThresholds[COLOR_RED].maxS = 240;
     colorThresholds[COLOR_RED].minL = 60;
     colorThresholds[COLOR_RED].maxL = 180;
     
     // 黄色阈值 (H约60)
-    colorThresholds[COLOR_YELLOW].minH = 40;
-    colorThresholds[COLOR_YELLOW].maxH = 80;
+    colorThresholds[COLOR_YELLOW].minH = 15;
+    colorThresholds[COLOR_YELLOW].maxH = 30;
     colorThresholds[COLOR_YELLOW].minS = 100;
     colorThresholds[COLOR_YELLOW].maxS = 240;
     colorThresholds[COLOR_YELLOW].minL = 60;
