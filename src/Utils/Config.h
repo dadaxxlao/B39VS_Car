@@ -10,17 +10,17 @@
 #define MOTOR_FL_IN1         3
 #define MOTOR_FL_IN2         4
 // 右前电机 (FR)
-#define MOTOR_FR_PWM         10
+#define MOTOR_FR_PWM         7
 #define MOTOR_FR_IN1         5
 #define MOTOR_FR_IN2         6
 // 左后电机 (RL)
-#define MOTOR_RL_PWM         11
-#define MOTOR_RL_IN1         7
-#define MOTOR_RL_IN2         8
+#define MOTOR_RL_PWM         8
+#define MOTOR_RL_IN1         9
+#define MOTOR_RL_IN2         10
 // 右后电机 (RR)
 #define MOTOR_RR_PWM         13
-#define MOTOR_RR_IN1         14
-#define MOTOR_RR_IN2         15
+#define MOTOR_RR_IN1         11
+#define MOTOR_RR_IN2         12
 
 // RGB LED灯环引脚
 #define RGB_LED_PIN          6
@@ -91,16 +91,24 @@ enum ColorCode {
     COLOR_COUNT   // 总颜色数量
 };
 
-// 系统状态
+/**
+ * 系统状态枚举
+ */
 enum SystemState {
-    INITIALIZED,     // 初始化状态
-    OBJECT_FIND,     // 寻找物块状态
-    OBJECT_GRAB,     // 抓取物块状态
-    OBJECT_LOCATE,   // 定位放置区域状态
-    OBJECT_PLACING,  // 放置物块状态
-    RETURN_BASE,     // 返回基地状态
-    END,             // 任务结束状态
-    ERROR_STATE      // 错误状态
+    INITIALIZED,        // 初始化状态
+    OBJECT_FIND,        // 寻找物块
+    ULTRASONIC_DETECT,  // 超声波检测
+    ZONE_JUDGE,         // 区域判断
+    ZONE_TO_BASE,       // 前往基地
+    OBJECT_GRAB,        // 抓取物体
+    OBJECT_PLACING,     // 放置物体
+    COUNT_INTERSECTION, // 计数路口
+    OBJECT_RELEASE,     // 释放物体
+    ERGODIC_JUDGE,      // 遍历判断
+    RETURN_BASE,        // 返回基地
+    BASE_ARRIVE,        // 到达基地
+    END,                // 结束
+    ERROR_STATE         // 错误状态
 };
 
 // OBJECT_LOCATE子状态
