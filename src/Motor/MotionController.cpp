@@ -30,9 +30,9 @@ void MotionController::setMotorState(MotorDriver &motor, float ratio, int motorI
 
 void MotionController::mecanumDrive(float vx, float vy, float omega) {
     // 运动学模型计算
-    float fl = +vx + vy + omega;
+    float fl = -vx - vy - omega;
     float fr = -vx + vy - omega;
-    float rl = -vx + vy + omega;
+    float rl = +vx - vy - omega;
     float rr = +vx + vy - omega;
 
     // 归一化处理
