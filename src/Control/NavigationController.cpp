@@ -21,6 +21,8 @@ NavigationController::NavigationController(SensorManager& sm, MotionController& 
     , m_isLineLost(false)
     , m_lastKnownTurnAmount(0.0)
     , m_sensorErrorCount(0)
+    , m_needsVerification(false)
+    , m_verificationStartTime(0)
 {
     // 构造函数初始化完成
 }
@@ -238,10 +240,87 @@ void NavigationController::update() {
                 
                 // 分类判断路口类型
                 m_detectedJunctionType = m_lineDetector.classifyStoppedJunction(sensorValues, m_triggerType);
-                Logger::info("NavCtrl", "State -> AT_JUNCTION (Type: %d)", m_detectedJunctionType);
-                m_currentState = NAV_AT_JUNCTION;
                 
-                Logger::info("NavCtrl", "静态检查完成，路口类型: %d", m_detectedJunctionType);
+                // 检查是否可能是全白模式误判
+                bool isAllWhite = true;
+                for (int i = 0; i < 8; i++) {
+                    if (sensorValues[i] == 0) {
+                        isAllWhite = false;
+                        break;
+                    }
+                }
+                
+                if (isAllWhite && (m_detectedJunctionType == LEFT_TURN || m_detectedJunctionType == RIGHT_TURN)) {
+                    // 可能是全白误判，需要进行微调验证
+                    m_needsVerification = true;
+                    m_verificationStartTime = millis();
+                    
+                    // 根据触发类型决定微调方向
+                    if (m_triggerType == LineFollower::TRIGGER_LEFT_EDGE) {
+                        // 向右微调，尝试找回可能丢失的左侧线
+                        m_motionController.spinRight(50);
+                        Logger::info("NavCtrl", "State -> VERIFYING_ALL_WHITE (向右微调)");
+                    } else {
+                        // 向左微调，尝试找回可能丢失的右侧线
+                        m_motionController.spinLeft(50);
+                        Logger::info("NavCtrl", "State -> VERIFYING_ALL_WHITE (向左微调)");
+                    }
+                    
+                    m_currentState = NAV_VERIFYING_ALL_WHITE;
+                    Logger::info("NavCtrl", "全白模式检测到，开始微调验证");
+                } else {
+                    // 不需要验证，直接进入路口状态
+                    Logger::info("NavCtrl", "State -> AT_JUNCTION (Type: %d)", m_detectedJunctionType);
+                    m_currentState = NAV_AT_JUNCTION;
+                    Logger::info("NavCtrl", "静态检查完成，路口类型: %d", m_detectedJunctionType);
+                }
+            }
+            break;
+        }
+        
+        case NAV_VERIFYING_ALL_WHITE: {
+            // 检查微调时间是否到
+            if (millis() - m_verificationStartTime >= VERIFICATION_TURN_DURATION) {
+                // 微调完成，停车并重新检测
+                m_motionController.emergencyStop();
+                
+                // 短暂延时让传感器稳定
+                delay(50);
+                
+                // 重新获取传感器值
+                uint16_t sensorValues[8];
+                m_sensorManager.getInfraredSensorValues(sensorValues);
+                
+                char sensorStr[40];
+                formatSensorArray(sensorValues, sensorStr, sizeof(sensorStr));
+                Logger::debug("NavCtrl", "微调后检查: 读取静态传感器值: %s", sensorStr);
+                
+                // 检查是否检测到线（不再是全白）
+                bool stillAllWhite = true;
+                for (int i = 0; i < 8; i++) {
+                    if (sensorValues[i] == 0) {
+                        stillAllWhite = false;
+                        break;
+                    }
+                }
+                
+                if (!stillAllWhite) {
+                    // 微调后检测到线，重新分类
+                    JunctionType newType = m_lineDetector.classifyStoppedJunction(sensorValues, m_triggerType);
+                    Logger::info("NavCtrl", "微调后检测到线! 重新分类为: %d", newType);
+                    
+                    // 更新路口类型
+                    if (newType != NO_JUNCTION) {
+                        m_detectedJunctionType = newType;
+                    }
+                } else {
+                    // 仍然是全白，保持原来的分类
+                    Logger::info("NavCtrl", "微调后仍为全白，保持原分类: %d", m_detectedJunctionType);
+                }
+                
+                // 进入路口状态
+                Logger::info("NavCtrl", "State -> AT_JUNCTION (Type: %d, 验证后)", m_detectedJunctionType);
+                m_currentState = NAV_AT_JUNCTION;
             }
             break;
         }

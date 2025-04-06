@@ -74,16 +74,20 @@ JunctionType LineDetector::classifyStoppedJunction(const uint16_t* staticSensorV
             resultJunctionType = T_LEFT;
             Logger::info("LineDet", "分类结果: T_LEFT（左边缘触发+中心线）");
         } else if (allWhite) {
+            // 全白模式下，可能需要小幅调整后重新检测
+            // 我们在NavigationController中添加此逻辑，此处标记为LEFT_TURN_NEEDS_VERIFICATION
             resultJunctionType = LEFT_TURN;
-            Logger::info("LineDet", "分类结果: LEFT_TURN（左边缘触发+全白）");
+            Logger::info("LineDet", "初步分类: LEFT_TURN（左边缘触发+全白），待验证");
         }
     } else if (triggerType == LineFollower::TRIGGER_RIGHT_EDGE) {
         if (blackMode) {
             resultJunctionType = T_RIGHT;
             Logger::info("LineDet", "分类结果: T_RIGHT（右边缘触发+中心线）");
         } else if (allWhite) {
+            // 全白模式下，可能需要小幅调整后重新检测
+            // 我们在NavigationController中添加此逻辑，此处标记为RIGHT_TURN_NEEDS_VERIFICATION
             resultJunctionType = RIGHT_TURN;
-            Logger::info("LineDet", "分类结果: RIGHT_TURN（右边缘触发+全白）");
+            Logger::info("LineDet", "初步分类: RIGHT_TURN（右边缘触发+全白），待验证");
         }
     }
     

@@ -20,7 +20,7 @@ bool SensorManager::initAllSensors() {
         Logger::error("SensorMgr", "红外线传感器初始化失败");
         allSuccess = false;
     }
-    
+    /*
     // 初始化超声波传感器
     if (!ultrasonicSensor.init()) {
         Logger::error("SensorMgr", "超声波传感器初始化失败");
@@ -32,7 +32,8 @@ bool SensorManager::initAllSensors() {
         Logger::error("SensorMgr", "颜色传感器初始化失败");
         allSuccess = false;
     }
-    
+    */
+
     allSensorsInitialized = allSuccess;
     
     if (allSuccess) {
