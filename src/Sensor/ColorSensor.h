@@ -17,7 +17,7 @@ const uint8_t CMD_READ_VERSION = 0xC1;
 // Expected PING response
 const uint8_t PING_RESPONSE = 0x66;
 
-// 感为 'Ganwei' (GW) I2C 颜色传感器接口
+// 感为 'Ganwei' GW) I2C 颜色传感器接口
 class ColorSensor {
 private:
     uint8_t i2cAddress;

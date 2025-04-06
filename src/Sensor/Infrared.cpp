@@ -192,10 +192,10 @@ void InfraredArray::debugPrint() {
     }
     
     Logger::debug("Infrared", "状态: 已连接 (地址: 0x%02X)", i2cAddress);
-    Logger::debug("Infrared", "传感器值: %d,%d,%d,%d,%d,%d,%d,%d", 
+    /*Logger::debug("Infrared", "传感器值: %d,%d,%d,%d,%d,%d,%d,%d", 
                  sensorValues[0], sensorValues[1], sensorValues[2], sensorValues[3],
                  sensorValues[4], sensorValues[5], sensorValues[6], sensorValues[7]);
-    
+    */
     int linePos = getLinePosition();
     if (linePos == INFRARED_NO_LINE) {
         Logger::debug("Infrared", "线位置: 未检测到线");

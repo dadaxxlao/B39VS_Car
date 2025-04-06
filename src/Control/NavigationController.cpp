@@ -38,18 +38,18 @@ void NavigationController::applyPIDControl(float turnAmount, int baseSpeed) {
         calculatedTurnSpeed = baseSpeed;
     } else if (turnAmount > 0) {
         // 线偏右，需要右转修正
-        actionStr = "SpinRight";
+        actionStr = "TurnRight";
         calculatedTurnSpeed = map(abs(turnAmount * 100), 20, 80, baseSpeed/2, baseSpeed);
         // 确保转向速度在合理范围内
         calculatedTurnSpeed = constrain(calculatedTurnSpeed, baseSpeed/2, baseSpeed);
-        m_motionController.spinRight(calculatedTurnSpeed);
+        m_motionController.turnRight(calculatedTurnSpeed);
     } else {
         // 线偏左，需要左转修正
-        actionStr = "SpinLeft";
+        actionStr = "TurnLeft";
         calculatedTurnSpeed = map(abs(turnAmount * 100), 20, 80, baseSpeed/2, baseSpeed);
         // 确保转向速度在合理范围内
         calculatedTurnSpeed = constrain(calculatedTurnSpeed, baseSpeed/2, baseSpeed);
-        m_motionController.spinLeft(calculatedTurnSpeed);
+        m_motionController.turnLeft(calculatedTurnSpeed);
     }
     
     Logger::debug("NavCtrl", "PID应用: 转向量=%f -> 动作=%s, 速度=%d", 
@@ -93,9 +93,9 @@ void NavigationController::update() {
                     Logger::info("NavCtrl", "传感器读取失败，尝试按最后方向行驶");
                     if (abs(m_lastKnownTurnAmount) > 0.2) {
                         if (m_lastKnownTurnAmount > 0)
-                            m_motionController.spinRight(m_lineFollower.getBaseSpeed());
+                            m_motionController.turnRight(m_lineFollower.getBaseSpeed());
                         else
-                            m_motionController.spinLeft(m_lineFollower.getBaseSpeed());
+                            m_motionController.turnLeft(m_lineFollower.getBaseSpeed());
                     } else {
                         m_motionController.moveForward(m_lineFollower.getBaseSpeed());
                     }
@@ -129,9 +129,9 @@ void NavigationController::update() {
                     if (abs(m_lastKnownTurnAmount) > 0.2) {
                         // 根据转向量的符号决定转向方向
                         if (m_lastKnownTurnAmount > 0) {
-                            m_motionController.spinRight(m_lineFollower.getBaseSpeed());  // 上次偏右，所以右转向线方向
+                            m_motionController.turnRight(m_lineFollower.getBaseSpeed());  // 上次偏右，所以右转向线方向
                         } else {
-                            m_motionController.spinLeft(m_lineFollower.getBaseSpeed()); // 上次偏左，所以左转向线方向
+                            m_motionController.turnLeft(m_lineFollower.getBaseSpeed()); // 上次偏左，所以左转向线方向
                         }
                     } else {
                         m_motionController.moveForward(m_lineFollower.getBaseSpeed());
@@ -149,9 +149,9 @@ void NavigationController::update() {
                     if (abs(m_lastKnownTurnAmount) > 0.2) {
                         // 根据转向量的符号决定转向方向
                         if (m_lastKnownTurnAmount > 0) {
-                            m_motionController.spinRight(m_lineFollower.getBaseSpeed());
+                            m_motionController.turnRight(m_lineFollower.getBaseSpeed());
                         } else {
-                            m_motionController.spinLeft(m_lineFollower.getBaseSpeed());
+                            m_motionController.turnLeft(m_lineFollower.getBaseSpeed());
                         }
                     } else {
                         m_motionController.moveForward(m_lineFollower.getBaseSpeed());

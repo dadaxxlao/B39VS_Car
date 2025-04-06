@@ -67,6 +67,32 @@ void setup() {
   Logger::init();
   // 设置日志级别为DEBUG以便在测试过程中查看详细信息
   Logger::setGlobalLogLevel(LOG_LEVEL_DEBUG); 
+  Logger::info("NavControllerTest", "--- 导航控制器测试就绪 ---");
+  
+  // 提示用户按下回车开始测试
+  Serial.println("\n请将小车放在黑线上，然后按下回车键开始测试...");
+  Serial.println("控制说明：");
+  Serial.println(" - 按下回车键：开始测试或在路口时继续前进");
+  Serial.println(" - 输入'q'键：随时终止测试");
+  
+  // 清空串口缓冲区
+  while(Serial.available()) {
+    Serial.read();
+  }
+  
+  // 等待用户按下回车键
+  while(true) {
+    if(Serial.available()) {
+      char c = Serial.read();
+      if(c == '\n' || c == '\r') {
+        break; // 用户按下回车，跳出循环
+      }
+    }
+    delay(10); // 短延迟避免过度消耗CPU
+  }
+  
+  // 用户按下回车，开始初始化
+  Serial.println("测试开始，初始化各个组件...");
   Logger::info("NavControllerTest", "--- 导航控制器测试初始化中 ---");
 
   // 初始化传感器管理器
@@ -100,12 +126,35 @@ void setup() {
   // （构造函数已在上面调用，init重置状态并开始导航）
   Logger::info("NavControllerTest", "正在初始化导航控制器...");
   navigationController.init(); // 设置状态为NAV_FOLLOWING_LINE
+  
+  // 延迟一秒，让用户准备好
+  delay(1000);
+  
   Logger::info("NavControllerTest", "导航控制器初始化完成。开始测试循环。");
+  Serial.println("\n所有组件初始化完成，小车将开始循迹...");
   Logger::info("NavControllerTest", "-----------------------------------------");
 }
 
 // --- 主循环函数 ---
 void loop() {
+  // 检查是否有终止命令
+  if (Serial.available()) {
+    char c = Serial.read();
+    if (c == 'q' || c == 'Q') {
+      // 用户输入q/Q，终止测试
+      motionController.emergencyStop();
+      Serial.println("\n收到终止命令，测试已停止。按下重置按钮重新开始测试。");
+      Logger::info("NavControllerTest", "用户手动终止测试");
+      
+      // 进入无限循环，保持停止状态直到重置
+      while (true) {
+        motionController.emergencyStop();
+        delay(500);
+      }
+    }
+    // 忽略其他字符
+  }
+
   // 1. 更新传感器数据（关键步骤！）
   // 这确保NavigationController及其组件
   // 在当前控制周期拥有最新的传感器读数
@@ -133,24 +182,43 @@ void loop() {
     // 记录检测到的路口及其类型
     Serial.print("\n检测到路口：");
     Serial.println(junctionTypeToString(detectedJunction));
-    Serial.println("发送任意字符继续...");
+    Serial.println("按下回车键继续，或输入'q'终止测试...");
     
     // 清空串口缓冲区
     while(Serial.available()) {
       Serial.read();
     }
     
-    // 阻塞等待，直到接收到任意串口输入
-    while(!Serial.available()) {
+    // 等待用户按下回车或q
+    bool continueTest = false;
+    while(!continueTest) {
+      if(Serial.available()) {
+        char input = Serial.read();
+        if(input == '\n' || input == '\r') {
+          // 用户按下回车，继续测试
+          continueTest = true;
+        } else if(input == 'q' || input == 'Q') {
+          // 用户输入q/Q，终止测试
+          Serial.println("\n收到终止命令，测试已停止。按下重置按钮重新开始测试。");
+          Logger::info("NavControllerTest", "用户手动终止测试");
+          
+          // 进入无限循环，保持停止状态直到重置
+          while (true) {
+            motionController.emergencyStop();
+            delay(500);
+          }
+        }
+        // 忽略其他字符
+      }
       delay(10); // 短延迟，避免过度消耗CPU
     }
     
-    // 清空接收到的数据
+    // 清空接收到的其他数据
     while(Serial.available()) {
       Serial.read();
     }
     
-    // 收到命令后继续
+    // 收到回车命令，继续
     Serial.println("继续运行...");
     navigationController.resumeFollowing();
     

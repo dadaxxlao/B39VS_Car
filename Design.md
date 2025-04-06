@@ -20,9 +20,11 @@
 
 在COUNT_INTERSECTION状态：小车默认循迹状态直行，遇到右T字形路口进行判断，如果计数器==颜色代号，则执行右转然后进入OBJECT_RELEASE状态；如果计数器<=颜色代号，则计数器加1(ColorCounter++)随后继续循迹然后回到COUNT_INTERSECTION状态；
 
-在OBJECT_RELEASE状态：小车默认循迹状态直行，根据超声波距离数据，我们进行小车前进后退的距离调整，直到到达机械臂长度，调用机械臂控制函数，进行放置，放置完成后执行掉头随后继续循迹，遇到T字形或者左转路口执行左转，然后进入ERGODIC_JUDGE状态。
+在OBJECT_RELEASE状态：小车默认循迹状态直行，根据超声波距离数据，我们进行小车前进后退的距离调整，直到到达机械臂长度，调用机械臂控制函数，进行放置，放置完成后执行掉头随后进入ERGODIC_JUDGE状态。
 
-在ERGOTIC_JUDGE状态：通过计数器ZoneCounter进行判断，如果ZoneCounter<=2, 则进入BACK_OBJECT_FIND状态；如果ZoneCounter==3, 则进入RETURN_BASE状态。
+在ERGOTIC_JUDGE状态：小车默认循迹状态直行，遇到T字形或者左转路口执行左转，并通过计数器ZoneCounter进行判断，如果ZoneCounter<=2, 则进入BACK_OBJECT_FIND状态；如果ZoneCounter==3, 则进入RETURN_BASE状态。
+
+在BACK_OBJECT_FIND状态：小车默认循迹状态直行，遇到T字形路口执行右转随后进入OBJECT_FIND状态
 
 在RETURN_BASE状态：小车默认循迹状态直行，遇到T字形路口执行左转随后继续循迹直行，当左转后再次触发路口判断则进入BASE_ARRIVE状态。
 

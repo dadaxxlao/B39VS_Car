@@ -31,8 +31,8 @@
 #define GRIPPER_SERVO_PIN    10
 
 // 传感器引脚
-#define ULTRASONIC_TRIG_PIN  11
-#define ULTRASONIC_ECHO_PIN  12
+#define ULTRASONIC_TRIG_PIN  22
+#define ULTRASONIC_ECHO_PIN  23
 
 // 蓝牙HM-10模块引脚
 #define BT_RX_PIN            16  // Arduino接收，连接到HM-10的TX
@@ -47,12 +47,12 @@
 // I2C地址
 #define INFRARED_ARRAY_ADDR  0x12
 // #define COLOR_SENSOR_ADDR    0x29  // 旧的TCS34725颜色传感器地址
-#define GANWEI_COLOR_SENSOR_ADDR 0x4F  // 感为颜色传感器地址 (7位地址，假设所有跳线都设置为1)
+#define GANWEI_COLOR_SENSOR_ADDR 0x4c  // 感为颜色传感器地址 (7位地址，假设所有跳线都设置为1)
 
 // 运动参数
 #define MAX_SPEED            255
 #define TURN_SPEED           100
-#define FOLLOW_SPEED         100
+#define FOLLOW_SPEED         50
 #define SHARP_TURN_SPEED     200
 #define DEFAULT_SPEED        100  // 麦克纳姆轮默认移动速度
 
@@ -105,6 +105,7 @@ enum SystemState {
     COUNT_INTERSECTION, // 计数路口
     OBJECT_RELEASE,     // 释放物体
     ERGODIC_JUDGE,      // 遍历判断
+    BACK_OBJECT_FIND,   // 返回寻找物块
     RETURN_BASE,        // 返回基地
     BASE_ARRIVE,        // 到达基地
     END,                // 结束

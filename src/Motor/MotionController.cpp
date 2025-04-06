@@ -30,9 +30,9 @@ void MotionController::setMotorState(MotorDriver &motor, float ratio, int motorI
 
 void MotionController::mecanumDrive(float vx, float vy, float omega) {
     // 运动学模型计算
-    float fl = +vx + vy + omega;
+    float fl = -vx - vy - omega;
     float fr = -vx + vy - omega;
-    float rl = -vx + vy + omega;
+    float rl = +vx - vy - omega;
     float rr = +vx + vy - omega;
 
     // 归一化处理
@@ -68,28 +68,28 @@ void MotionController::moveBackward(int speed) {
 void MotionController::lateralLeft(int speed) {
     int originalSpeed = speedFactor;
     speedFactor = speed;
-    mecanumDrive(1.0, 0, 0);  // +X方向平移
+    mecanumDrive(-1.0, 0, 0);  // +X方向平移
     speedFactor = originalSpeed;
 }
 
 void MotionController::lateralRight(int speed) {
     int originalSpeed = speedFactor;
     speedFactor = speed;
-    mecanumDrive(-1.0, 0, 0); // -X方向平移
+    mecanumDrive(1.0, 0, 0); // -X方向平移
     speedFactor = originalSpeed;
 }
 
 void MotionController::turnLeft(int speed) {
     int originalSpeed = speedFactor;
     speedFactor = speed;
-    mecanumDrive(0, 0.7, - 0.3);  // 左前移动+左旋转
+    mecanumDrive(0, 0.7, - 0.4);  // 左前移动+左旋转
     speedFactor = originalSpeed;
 }
 
 void MotionController::turnRight(int speed) {
     int originalSpeed = speedFactor;
     speedFactor = speed;
-    mecanumDrive(0, 0.7, 0.3);  // 右前移动+右旋转
+    mecanumDrive(0, 0.7, 0.4);  // 右前移动+右旋转
     speedFactor = originalSpeed;
 }
 

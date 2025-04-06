@@ -41,6 +41,7 @@ bool SensorManager::initAllSensors() {
         Logger::warning("SensorMgr", "部分传感器初始化失败");
     }
     
+    
     return allSuccess;
 }
 
