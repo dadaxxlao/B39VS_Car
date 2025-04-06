@@ -48,7 +48,9 @@ void loop() {
   
   // 打印距离信息
   if (success) {
-    Logger::info("距离: %.2f cm", distance);
+    char distStr[10];
+    dtostrf(distance, 6, 2, distStr);
+    Logger::info("距离: %.s cm", distStr);
     
     // 检测是否有障碍物
     bool obstacle = (distance <= NO_OBJECT_THRESHOLD);

@@ -31,8 +31,8 @@
 #define GRIPPER_SERVO_PIN    10
 
 // 传感器引脚
-#define ULTRASONIC_TRIG_PIN  11
-#define ULTRASONIC_ECHO_PIN  12
+#define ULTRASONIC_TRIG_PIN  22
+#define ULTRASONIC_ECHO_PIN  23
 
 // 蓝牙HM-10模块引脚
 #define BT_RX_PIN            16  // Arduino接收，连接到HM-10的TX
@@ -105,6 +105,7 @@ enum SystemState {
     COUNT_INTERSECTION, // 计数路口
     OBJECT_RELEASE,     // 释放物体
     ERGODIC_JUDGE,      // 遍历判断
+    BACK_OBJECT_FIND,   // 返回寻找物块
     RETURN_BASE,        // 返回基地
     BASE_ARRIVE,        // 到达基地
     END,                // 结束

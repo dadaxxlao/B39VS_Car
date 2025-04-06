@@ -23,23 +23,23 @@ void ColorSensor::initColorThresholds() {
     colorThresholds[COLOR_RED].maxH = 5; // 跨0判断
     colorThresholds[COLOR_RED].minS = 100;
     colorThresholds[COLOR_RED].maxS = 240;
-    colorThresholds[COLOR_RED].minL = 60;
+    colorThresholds[COLOR_RED].minL = 80;
     colorThresholds[COLOR_RED].maxL = 180;
     
     // 黄色阈值 (H约60)
-    colorThresholds[COLOR_YELLOW].minH = 15;
-    colorThresholds[COLOR_YELLOW].maxH = 30;
-    colorThresholds[COLOR_YELLOW].minS = 100;
+    colorThresholds[COLOR_YELLOW].minH = 6;
+    colorThresholds[COLOR_YELLOW].maxH = 15;
+    colorThresholds[COLOR_YELLOW].minS = 150;
     colorThresholds[COLOR_YELLOW].maxS = 240;
-    colorThresholds[COLOR_YELLOW].minL = 60;
-    colorThresholds[COLOR_YELLOW].maxL = 180;
+    colorThresholds[COLOR_YELLOW].minL = 80;
+    colorThresholds[COLOR_YELLOW].maxL = 185;
     
     // 蓝色阈值 (H约160)
     colorThresholds[COLOR_BLUE].minH = 140;
     colorThresholds[COLOR_BLUE].maxH = 180;
     colorThresholds[COLOR_BLUE].minS = 100;
     colorThresholds[COLOR_BLUE].maxS = 240;
-    colorThresholds[COLOR_BLUE].minL = 60;
+    colorThresholds[COLOR_BLUE].minL = 80;
     colorThresholds[COLOR_BLUE].maxL = 180;
     
     // 黑色阈值 (低亮度L)
@@ -48,7 +48,7 @@ void ColorSensor::initColorThresholds() {
     colorThresholds[COLOR_BLACK].minS = 0;
     colorThresholds[COLOR_BLACK].maxS = 240;
     colorThresholds[COLOR_BLACK].minL = 0;
-    colorThresholds[COLOR_BLACK].maxL = 40;
+    colorThresholds[COLOR_BLACK].maxL = 80;
     
     // 白色阈值 (高亮度L，低饱和度S)
     colorThresholds[COLOR_WHITE].minH = 0;

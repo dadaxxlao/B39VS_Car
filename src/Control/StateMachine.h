@@ -47,6 +47,11 @@ public:
     // 处理上位机命令
     void handleCommand(const char* command);
     
+    // 测试相关 - 声明友元，使TestStateMachine.cpp可以访问私有方法
+    #ifdef TEST_STATE_MACHINE
+    friend class TestableStateMachine;
+    #endif
+    
 private:
     // 组件引用
     SensorManager& m_sensorManager;
@@ -74,6 +79,7 @@ private:
     void handleCountIntersection();
     void handleObjectRelease();
     void handleErgodicJudge();
+    void handleBackObjectFind();
     void handleReturnBase();
     void handleBaseArrive();
     void handleEnd();

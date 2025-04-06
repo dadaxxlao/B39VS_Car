@@ -86,6 +86,9 @@ void StateMachine::update() {
         case ERGODIC_JUDGE:
             handleErgodicJudge();
             break;
+        case BACK_OBJECT_FIND:
+            handleBackObjectFind();
+            break;
         case RETURN_BASE:
             handleReturnBase();
             break;
@@ -124,6 +127,9 @@ void StateMachine::handleInitialized() {
  * 处理寻找物块状态
  */
 void StateMachine::handleObjectFind() {
+    // 每次进入此状态都重置区域计数器
+    m_zoneCounter = 0;
+    
     // 更新导航控制器
     m_navigationController.update();
     
@@ -141,8 +147,7 @@ void StateMachine::handleObjectFind() {
         switch (junction) {
             case T_LEFT: // 左旋T字形路口
             case LEFT_TURN: // 左转弯
-                // 左转并进入超声波检测状态
-                m_motionController.turnLeft(TURN_SPEED);
+                // 直接进入超声波检测状态，左转操作在ULTRASONIC_DETECT开始时执行
                 transitionTo(ULTRASONIC_DETECT);
                 break;
                 
@@ -175,15 +180,19 @@ void StateMachine::handleObjectFind() {
  * 处理超声波检测状态
  */
 void StateMachine::handleUltrasonicDetect() {
-    // 超声波检测逻辑
-    float distance = m_sensorManager.getUltrasonicDistance();
-    
-    // 计数器加一（标识当前是哪个Zone）
+    // 执行左转操作（从OBJECT_FIND状态移到这里）
     if (m_actionStartTime == 0) {
+        // 执行左转
+        m_motionController.turnLeft(TURN_SPEED);
+        
+        // 计数器加一（标识当前是哪个Zone）
         m_zoneCounter++;
         m_actionStartTime = millis();
-        Logger::info("StateMachine", "进入超声波检测状态，区域计数: %d", m_zoneCounter);
+        Logger::info("StateMachine", "进入超声波检测状态，执行左转，区域计数: %d", m_zoneCounter);
     }
+    
+    // 超声波检测逻辑
+    float distance = m_sensorManager.getUltrasonicDistance();
     
     // 检测物块
     if (distance < OBJECT_DETECTION_THRESHOLD) {
@@ -205,11 +214,40 @@ void StateMachine::handleUltrasonicDetect() {
 void StateMachine::handleZoneJudge() {
     // 根据区域计数器进行判断
     if (m_zoneCounter <= 2) {
-        // 执行右转操作
-        Logger::info("StateMachine", "区域%d判断：执行右转", m_zoneCounter);
-        m_motionController.turnRight(TURN_SPEED);
-        m_navigationController.resumeFollowing();
-        transitionTo(OBJECT_FIND); // 继续寻找物块
+        // 检查是否是刚进入该状态
+        if (m_actionStartTime == 0) {
+            // 执行右转操作
+            Logger::info("StateMachine", "区域%d判断：执行右转，继续巡线", m_zoneCounter);
+            m_motionController.turnRight(TURN_SPEED);
+            m_navigationController.resumeFollowing();
+            m_actionStartTime = millis(); // 标记已执行右转
+        }
+        
+        // 持续更新导航控制器
+        m_navigationController.update();
+        
+        // 获取当前导航状态
+        NavigationState navState = m_navigationController.getCurrentNavigationState();
+        
+        // 如果到达路口，检查是否为左转或左T路口
+        if (navState == NAV_AT_JUNCTION) {
+            JunctionType junction = m_navigationController.getDetectedJunctionType();
+            
+            if (junction == T_LEFT || junction == LEFT_TURN) {
+                Logger::info("StateMachine", "区域%d检测到左转或左T路口，进入超声波检测状态", m_zoneCounter);
+                m_actionStartTime = 0; // 重置状态变量
+                transitionTo(ULTRASONIC_DETECT);
+            } else {
+                // 非左转或左T路口，继续巡线
+                m_navigationController.resumeFollowing();
+            }
+        }
+        // 处理导航错误
+        else if (navState == NAV_ERROR) {
+            Logger::error("StateMachine", "导航错误，进入ERROR状态");
+            m_actionStartTime = 0; // 重置状态变量
+            transitionTo(ERROR_STATE);
+        }
     } else if (m_zoneCounter == 3) {
         // 执行左转操作
         Logger::info("StateMachine", "区域3判断：执行左转进入ZONE_TO_BASE");
@@ -396,36 +434,68 @@ void StateMachine::handleCountIntersection() {
  * 处理释放物体状态
  */
 void StateMachine::handleObjectRelease() {
-    // 如果刚进入状态，记录开始时间
+    // 更新导航控制器
+    m_navigationController.update();
+    
+    // 获取当前导航状态
+    NavigationState navState = m_navigationController.getCurrentNavigationState();
+    
+    // 检查是否刚进入状态
     if (m_actionStartTime == 0) {
         m_actionStartTime = millis();
         m_isActionComplete = false;
-        
-        // 向前移动直到合适的放置距离
-        float distance = m_sensorManager.getUltrasonicDistance();
-        if (distance > GRAB_DISTANCE) {
-            m_motionController.moveForward(FOLLOW_SPEED / 2); // 低速接近
-        } else {
-            m_motionController.emergencyStop();
+        Logger::info("StateMachine", "进入物体释放状态，循迹前进直到检测到全黑");
+    }
+    
+    // 第一阶段：寻找全黑线并放置物体，然后掉头
+    if (!m_isActionComplete) {
+        // 如果到达路口（全黑模式/T字形路口），执行放置操作
+        if (navState == NAV_AT_JUNCTION) {
+            JunctionType junction = m_navigationController.getDetectedJunctionType();
             
-            // 执行放置动作
-            m_roboticArm.release();
-            Logger::info("StateMachine", "物体放置完成");
-            
-            m_isActionComplete = true;
+            // 确认是否为T_FORWARD（全黑模式）
+            if (junction == T_FORWARD) {
+                Logger::info("StateMachine", "检测到全黑模式/T字路口，停止执行放置操作");
+                m_motionController.emergencyStop();
+                
+                // 执行放置动作
+                m_roboticArm.release();
+                Logger::info("StateMachine", "物体放置完成");
+                
+                // 等待放置完成
+                delay(1000);
+                
+                // 掉头
+                Logger::info("StateMachine", "开始掉头");
+                m_motionController.uTurn();
+                delay(2000); // 等待掉头完成
+                
+                // 恢复巡线，直接进入遍历判断状态
+                Logger::info("StateMachine", "掉头完成，直接进入遍历判断状态");
+                m_navigationController.resumeFollowing();
+                
+                // 重置状态变量
+                m_actionStartTime = 0;
+                m_isActionComplete = false;
+                
+                // 直接进入遍历判断状态
+                transitionTo(ERGODIC_JUDGE);
+            } else {
+                // 其他类型路口，继续巡线
+                m_navigationController.resumeFollowing();
+            }
         }
     }
     
-    // 检查放置是否完成或超时
-    if (m_isActionComplete || (millis() - m_actionStartTime > PLACING_TIMEOUT)) {
-        m_actionStartTime = 0; // 重置计时器
+    // 处理导航错误
+    if (navState == NAV_ERROR) {
+        Logger::error("StateMachine", "导航错误，进入ERROR状态");
         
-        // 掉头
-        m_motionController.uTurn();
+        // 重置状态变量
+        m_actionStartTime = 0;
+        m_isActionComplete = false;
         
-        // 恢复巡线，然后进入遍历判断状态
-        m_navigationController.resumeFollowing();
-        transitionTo(ERGODIC_JUDGE);
+        transitionTo(ERROR_STATE);
     }
 }
 
@@ -449,12 +519,46 @@ void StateMachine::handleErgodicJudge() {
             
             // 根据区域计数器进行判断
             if (m_zoneCounter <= 2) {
-                Logger::info("StateMachine", "区域%d未遍历完，继续寻找", m_zoneCounter);
-                transitionTo(OBJECT_FIND);
+                Logger::info("StateMachine", "区域%d未遍历完，进入返回寻找物块状态", m_zoneCounter);
+                transitionTo(BACK_OBJECT_FIND);
             } else if (m_zoneCounter == 3) {
                 Logger::info("StateMachine", "所有区域已遍历，返回基地");
                 transitionTo(RETURN_BASE);
             }
+        } else {
+            // 继续巡线
+            m_navigationController.resumeFollowing();
+        }
+    }
+    // 处理导航错误
+    else if (navState == NAV_ERROR) {
+        Logger::error("StateMachine", "导航错误，进入ERROR状态");
+        transitionTo(ERROR_STATE);
+    }
+}
+
+/**
+ * 处理返回寻找物块状态
+ */
+void StateMachine::handleBackObjectFind() {
+    // 更新导航控制器
+    m_navigationController.update();
+    
+    // 获取当前导航状态
+    NavigationState navState = m_navigationController.getCurrentNavigationState();
+    
+    // 如果到达路口，执行路口决策
+    if (navState == NAV_AT_JUNCTION) {
+        JunctionType junction = m_navigationController.getDetectedJunctionType();
+        
+        Logger::info("StateMachine", "BACK_OBJECT_FIND状态 - 检测到路口: %s", 
+                     this->junctionTypeToString(junction));
+        
+        // 遇到T字形路口执行右转随后进入OBJECT_FIND状态
+        if (junction == T_FORWARD) {
+            Logger::info("StateMachine", "检测到T字路口，执行右转进入OBJECT_FIND状态");
+            m_motionController.turnRight(TURN_SPEED);
+            transitionTo(OBJECT_FIND);
         } else {
             // 继续巡线
             m_navigationController.resumeFollowing();
@@ -484,7 +588,7 @@ void StateMachine::handleReturnBase() {
         Logger::info("StateMachine", "RETURN_BASE状态 - 检测到路口: %s", 
                      this->junctionTypeToString(junction));
         
-        if (junction == T_LEFT) {
+        if (junction == T_FORWARD) {
             // T字路口左转
             m_motionController.turnLeft(TURN_SPEED);
             
@@ -660,6 +764,7 @@ const char* StateMachine::systemStateToString(SystemState state) const {
         case COUNT_INTERSECTION: return "COUNT_INTERSECTION";
         case OBJECT_RELEASE: return "OBJECT_RELEASE";
         case ERGODIC_JUDGE: return "ERGODIC_JUDGE";
+        case BACK_OBJECT_FIND: return "BACK_OBJECT_FIND";
         case RETURN_BASE: return "RETURN_BASE";
         case BASE_ARRIVE: return "BASE_ARRIVE";
         case END: return "END";
