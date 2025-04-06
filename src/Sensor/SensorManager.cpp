@@ -21,7 +21,7 @@ bool SensorManager::initAllSensors() {
         allSuccess = false;
     }
     
-    /*// 初始化超声波传感器
+    // 初始化超声波传感器
     if (!ultrasonicSensor.init()) {
         Logger::error("SensorMgr", "超声波传感器初始化失败");
         allSuccess = false;
@@ -40,7 +40,7 @@ bool SensorManager::initAllSensors() {
     } else {
         Logger::warning("SensorMgr", "部分传感器初始化失败");
     }
-    */
+    
     
     return allSuccess;
 }

@@ -68,28 +68,28 @@ void MotionController::moveBackward(int speed) {
 void MotionController::lateralLeft(int speed) {
     int originalSpeed = speedFactor;
     speedFactor = speed;
-    mecanumDrive(1.0, 0, 0);  // +X方向平移
+    mecanumDrive(-1.0, 0, 0);  // +X方向平移
     speedFactor = originalSpeed;
 }
 
 void MotionController::lateralRight(int speed) {
     int originalSpeed = speedFactor;
     speedFactor = speed;
-    mecanumDrive(-1.0, 0, 0); // -X方向平移
+    mecanumDrive(1.0, 0, 0); // -X方向平移
     speedFactor = originalSpeed;
 }
 
 void MotionController::turnLeft(int speed) {
     int originalSpeed = speedFactor;
     speedFactor = speed;
-    mecanumDrive(0, 0.7, - 0.3);  // 左前移动+左旋转
+    mecanumDrive(0, 0.7, - 0.4);  // 左前移动+左旋转
     speedFactor = originalSpeed;
 }
 
 void MotionController::turnRight(int speed) {
     int originalSpeed = speedFactor;
     speedFactor = speed;
-    mecanumDrive(0, 0.7, 0.3);  // 右前移动+右旋转
+    mecanumDrive(0, 0.7, 0.4);  // 右前移动+右旋转
     speedFactor = originalSpeed;
 }
 

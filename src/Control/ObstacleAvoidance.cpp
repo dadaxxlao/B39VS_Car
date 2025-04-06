@@ -1,13 +1,28 @@
 #include "ObstacleAvoidance.h"
 
-// 构造函数
+// 构造函数 - 不使用LineFollower的版本
 ObstacleAvoidance::ObstacleAvoidance(SensorManager& sensorManager, MotionController& motionController)
     : m_sensorManager(sensorManager)
     , m_motionController(motionController)
+    , m_lineFollower(nullptr)
+    , m_useLineFollower(false)
     , m_currentState(OBS_INACTIVE)
     , m_actionStartTime(0)
 {
     // 构造函数初始化
+}
+
+// 构造函数 - 使用LineFollower的版本
+ObstacleAvoidance::ObstacleAvoidance(SensorManager& sensorManager, MotionController& motionController, LineFollower& lineFollower)
+    : m_sensorManager(sensorManager)
+    , m_motionController(motionController)
+    , m_lineFollower(&lineFollower)
+    , m_useLineFollower(true)
+    , m_currentState(OBS_INACTIVE)
+    , m_actionStartTime(0)
+{
+    // 构造函数初始化
+    Logger::info("ObsAvoid", "已配置LineFollower支持");
 }
 
 // 初始化
@@ -53,6 +68,24 @@ bool ObstacleAvoidance::checkForObstacle() {
     return false;
 }
 
+// 应用PID控制
+void ObstacleAvoidance::applyPIDControl(float turnAmount, int baseSpeed) {
+    // 根据转向量设置小车移动
+    if (turnAmount > 0) {  // 需要右转
+        // 使用MotionController的turnRight方法
+        m_motionController.turnRight(baseSpeed);
+    } else if (turnAmount < 0) {  // 需要左转
+        // 使用MotionController的turnLeft方法
+        m_motionController.turnLeft(baseSpeed);
+    } else {  // 直行
+        // 使用MotionController的moveForward方法
+        m_motionController.moveForward(baseSpeed);
+    }
+    
+    // 记录当前控制
+    Logger::debug("ObsAvoid", "PID控制: 转向量=%.2f, 速度=%d", turnAmount, baseSpeed);
+}
+
 // 更新状态
 void ObstacleAvoidance::update() {
     unsigned long currentTime = millis();
@@ -63,6 +96,22 @@ void ObstacleAvoidance::update() {
             break;
             
         case OBS_DETECTING:
+            // 检测障碍物并同时巡线
+            if (m_useLineFollower && m_lineFollower != nullptr) {
+                // 使用LineFollower进行巡线
+                LineFollower::TriggerType trigger = m_lineFollower->update();
+                float turnAmount = m_lineFollower->getLastTurnAmount();
+                int baseSpeed = m_lineFollower->getBaseSpeed();
+                
+                // 应用PID控制
+                applyPIDControl(turnAmount, baseSpeed);
+                
+                // 记录巡线状态
+                if (trigger != LineFollower::TRIGGER_NONE) {
+                    Logger::debug("ObsAvoid", "巡线触发事件: %d", trigger);
+                }
+            }
+            
             // 检测障碍物
             if (checkForObstacle()) {
                 // 检测到障碍物，开始避障过程
@@ -153,4 +202,12 @@ bool ObstacleAvoidance::isAvoidanceCompleted() const {
 void ObstacleAvoidance::reset() {
     m_currentState = OBS_INACTIVE;
     Logger::info("ObsAvoid", "避障状态已重置");
+}
+
+// 设置障碍物检测阈值
+void ObstacleAvoidance::setObstacleThreshold(float threshold) {
+    if (threshold > 0) {
+        const_cast<float&>(OBSTACLE_THRESHOLD) = threshold;
+        Logger::info("ObsAvoid", "障碍物检测阈值已设置为 %.2f cm", threshold);
+    }
 } 

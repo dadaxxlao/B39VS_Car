@@ -3,6 +3,7 @@
 
 #include "../Sensor/SensorManager.h"
 #include "../Motor/MotionController.h"
+#include "../Control/LineFollower.h"
 #include "../Utils/Logger.h"
 
 // 避障状态枚举
@@ -20,6 +21,10 @@ private:
     // 引用传感器和电机控制器
     SensorManager& m_sensorManager;
     MotionController& m_motionController;
+    LineFollower* m_lineFollower;  // 可选的LineFollower对象指针
+    
+    // 是否使用LineFollower进行巡线
+    bool m_useLineFollower;
     
     // 避障状态
     ObstacleAvoidanceState m_currentState;
@@ -28,18 +33,24 @@ private:
     unsigned long m_actionStartTime;
     
     // 避障参数
-    const unsigned long RIGHT_MOVE_DURATION = 5000;    // 向右平移时间(5秒)
-    const unsigned long FORWARD_MOVE_DURATION = 5000;  // 向前行驶时间(5秒)
-    const unsigned long LEFT_MOVE_DURATION = 5000;     // 向左平移时间(5秒)
-    const int AVOID_SPEED = 150;                       // 避障速度
-    const float OBSTACLE_THRESHOLD = 20.0;             // 障碍物检测阈值(20cm)
+    const unsigned long RIGHT_MOVE_DURATION = 1500;    // 向右平移时间(5秒)
+    const unsigned long FORWARD_MOVE_DURATION = 3000;  // 向前行驶时间(5秒)
+    const unsigned long LEFT_MOVE_DURATION = 1700;     // 向左平移时间(5秒)
+    const int AVOID_SPEED = 100;                       // 避障速度
+    const float OBSTACLE_THRESHOLD = 5.0;             // 障碍物检测阈值(20cm)
     
     // 私有方法：检查障碍物
     bool checkForObstacle();
+    
+    // 私有方法：应用PID控制
+    void applyPIDControl(float turnAmount, int baseSpeed);
 
 public:
-    // 构造函数
+    // 构造函数 - 原始版本，不使用LineFollower
     ObstacleAvoidance(SensorManager& sensorManager, MotionController& motionController);
+    
+    // 构造函数 - 支持LineFollower的版本
+    ObstacleAvoidance(SensorManager& sensorManager, MotionController& motionController, LineFollower& lineFollower);
     
     // 初始化
     void init();
@@ -61,6 +72,12 @@ public:
     
     // 重置状态
     void reset();
+    
+    // 获取是否使用LineFollower
+    bool isUsingLineFollower() const { return m_useLineFollower; }
+    
+    // 设置障碍物检测阈值
+    void setObstacleThreshold(float threshold);
 };
 
 #endif // OBSTACLE_AVOIDANCE_H 
