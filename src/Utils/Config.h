@@ -52,7 +52,7 @@
 // 运动参数
 #define MAX_SPEED            255
 #define TURN_SPEED           100
-#define FOLLOW_SPEED         100
+#define FOLLOW_SPEED         50
 #define SHARP_TURN_SPEED     200
 #define DEFAULT_SPEED        100  // 麦克纳姆轮默认移动速度
 
@@ -128,7 +128,7 @@ enum LocateSubState {
 
 // Navigation Controller Stop-and-Check Parameters
 #define NAV_CHECK_FORWARD_DURATION 150  // 短距前进的持续时间 (ms)
-#define NAV_CHECK_FORWARD_SPEED    80   // 短距前进的速度 (0-255)
+#define NAV_CHECK_FORWARD_SPEED    60   // 短距前进的速度 (0-255)
 #define NAV_CHECK_STABILIZE_DELAY  50   // 停车后等待稳定的时间 (ms)
 
 #endif // CONFIG_H 
