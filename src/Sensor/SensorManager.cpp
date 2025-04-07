@@ -33,6 +33,7 @@ bool SensorManager::initAllSensors() {
         allSuccess = false;
     }
     
+
     allSensorsInitialized = allSuccess;
     
     if (allSuccess) {

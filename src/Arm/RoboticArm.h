@@ -4,16 +4,27 @@
 #include <Arduino.h>
 #include <Servo.h>
 #include "../Utils/Config.h"
+#include "../Sensor/Ultrasonic.h"
 
 class RoboticArm {
 private:
-    Servo armServo;     // 控制机械臂升降的舵机
-    Servo gripperServo; // 控制机械爪开合的舵机
+    Servo myservos[3];     // 三个舵机：底部、中间和夹爪
+    UltrasonicSensor ultrasonic; // 超声波传感器对象
     
-    int armPosition;    // 当前机械臂角度
-    int gripperPosition; // 当前机械爪角度
+    // 舵机引脚
+    static const byte SERVO_NUM = 3;
+    byte servo_pin[SERVO_NUM] = {44, 45, 46}; 
+    
+    // 舵机初始位置（微秒）
+    int servo_initial_pos[SERVO_NUM] = {1500, 900, 600};
+    
+    // 当前位置
+    int currentPositions[SERVO_NUM];
     
     bool isCalibrated;  // 是否已校准
+    
+    // 舵机控制函数
+    void servoControl(int angle_base, int angle_arm, int angle_claw);
     
 public:
     RoboticArm();
@@ -24,29 +35,39 @@ public:
     // 校准机械臂
     void calibrate();
     
-    // 设置机械臂角度
-    void setPosition(float angle);
-    
-    // 抓取物体
+    // 夹取物体
     bool grab();
     
     // 释放物体
     void release();
     
-    // 机械臂上升
-    void raise();
+    // 机械臂归位
+    void reset();
     
-    // 机械臂下降
-    void lower();
+    // 以下是对应TestStateMachineComplete.cpp中使用的接口
+    // 打开夹爪
+    void openGripper();
     
-    // 获取当前机械臂角度
-    int getArmPosition() const;
+    // 关闭夹爪
+    void closeGripper();
     
-    // 获取当前机械爪角度
-    int getGripperPosition() const;
+    // 移动机械臂向上
+    void moveUp();
+    
+    // 移动机械臂向下
+    void moveDown();
+    
+    // 机械臂放置到物料盒位置
+    void moveToBox();
+    
+    // 机械臂调整角度
+    void adjustArm(int baseAngle, int armAngle, int clawAngle);
     
     // 判断机械臂是否处于运动中
     bool isMoving() const;
+
+    // 检查是否满足抓取条件
+    bool checkGrabCondition();
 };
 
 #endif // ROBOTIC_ARM_H 

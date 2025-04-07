@@ -10,6 +10,7 @@
 
 // 导航状态枚举
 enum NavigationState {
+
     NAV_STOPPED,             // 初始或错误停止状态
     NAV_FOLLOWING_LINE,      // 正常巡线
     NAV_POTENTIAL_JUNCTION,  // 可选，检测到边缘触发
@@ -24,16 +25,21 @@ enum NavigationState {
 
 class NavigationController {
 private:
-    // 引用成员
+    // 引用其他组件
     SensorManager& m_sensorManager;
     MotionController& m_motionController;
     LineFollower& m_lineFollower;
     LineDetector m_lineDetector;
     
-    // 状态变量
+    // 当前导航状态
     NavigationState m_currentState;
+    
+    // 检测到的路口类型
     JunctionType m_detectedJunctionType;
+    
+    // 触发类型
     LineFollower::TriggerType m_triggerType;  // 存储触发检查的模式
+
     unsigned long m_actionStartTime;          // 用于计时短距前进等
     unsigned long m_obstacleAvoidanceStartTime; // 用于计时避障动作
     
@@ -43,42 +49,55 @@ private:
     unsigned long m_avoidRightDuration; // 向右平移时间 (ms)
     unsigned long m_avoidForwardDuration; // 向前行驶时间 (ms)
     unsigned long m_avoidLeftDuration;  // 向左平移最大时间 (ms)
+
     
-    // 丢线处理变量
-    unsigned long m_lineLostStartTime;        // 丢线开始时间
-    unsigned long m_maxLineLostTime;          // 最大丢线容忍时间
-    bool m_isLineLost;                        // 是否处于丢线状态
-    float m_lastKnownTurnAmount;              // 最后一次有效的转向量
+    // 时间控制
+    unsigned long m_actionStartTime;  // 动作开始时间
+    unsigned long m_lineLostStartTime; // 丢线起始时间
+    unsigned long m_maxLineLostTime;   // 最大允许丢线时间
     
-    // 传感器错误处理
-    int m_sensorErrorCount;                   // 传感器读取错误计数
-    static const int MAX_CONSECUTIVE_ERRORS = 5; // 最大连续错误次数
+    // 丢线恢复相关
+    bool m_isLineLost;            // 是否丢线
+    float m_lastKnownTurnAmount; // 最后已知的转向量
+    
+    // 传感器错误计数
+    int m_sensorErrorCount;
+    const int MAX_CONSECUTIVE_ERRORS = 5; // 最大连续错误次数
+    
+    // 新增：全白验证相关
+    bool m_needsVerification; // 是否需要验证
+    unsigned long m_verificationStartTime; // 验证开始时间
+    const unsigned long VERIFICATION_TURN_DURATION = 50; // 微转向时间(0.05秒)
     
     // PID控制封装方法
     void applyPIDControl(float turnAmount, int baseSpeed);
+
     bool checkForObstacle();
 
 public:
     // 构造函数
     NavigationController(SensorManager& sm, MotionController& mc, LineFollower& lf);
     
-    // 初始化函数
+    // 初始化
     void init();
     
-    // 核心状态更新函数
+    // 更新状态
     void update();
     
     // 获取当前导航状态
     NavigationState getCurrentNavigationState() const;
     
-    // 获取检测到的路口类型（仅在NAV_AT_JUNCTION状态有效）
+    // 获取检测到的路口类型
     JunctionType getDetectedJunctionType() const;
     
-    // 恢复巡线状态（由StateMachine调用）
+    // 恢复巡线状态
     void resumeFollowing();
     
     // 强制停止导航
     void stop();
+    
+    // 常量
+ 
 };
 
 #endif // NAVIGATION_CONTROLLER_H 
