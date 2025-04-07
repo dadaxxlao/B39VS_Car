@@ -1,3 +1,4 @@
+import React from 'react'; // 添加React导入
 import Image from 'next/image'; // Used for map placeholder
 
 export default function ContactPage() {
@@ -5,7 +6,7 @@ export default function ContactPage() {
     <div className="max-w-6xl mx-auto">
       <h1 className="text-4xl font-bold mb-8 text-center text-primary">Contact EcoClaw Robotics</h1>
        <p className="text-lg text-center text-muted-foreground mb-10">
-          We're ready to discuss how our autonomous solutions can meet your hazardous waste management needs. Reach out today.
+          We&apos;re ready to discuss how our autonomous solutions can meet your hazardous waste management needs. Reach out today.
        </p>
 
       <div className="grid md:grid-cols-2 gap-12">

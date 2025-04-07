@@ -91,7 +91,7 @@ export default function HomePage() {
        <section className="container mx-auto px-4 py-12 mb-12">
          <h2 className="text-3xl font-bold text-center mb-6">Our Innovative Edge</h2>
          <p className="text-center max-w-3xl mx-auto text-muted-foreground text-lg">
-           EcoClaw stands out through the seamless integration of robust navigation, secure handling, and proactive safety features. Our system's ability to interpret color-coded environments and communicate status updates sets a new standard in automated hazardous waste management. We leverage accessible and reliable Arduino-based technology, making advanced automation practical.
+           EcoClaw stands out through the seamless integration of robust navigation, secure handling, and proactive safety features. Our system&apos;s ability to interpret color-coded environments and communicate status updates sets a new standard in automated hazardous waste management. We leverage accessible and reliable Arduino-based technology, making advanced automation practical.
          </p>
        </section>
 
@@ -137,9 +137,9 @@ export default function HomePage() {
       {/* Final Call to Action (CTA) */}
       <section className="bg-secondary text-white py-16">
         <div className="container mx-auto px-4 text-center">
-          <h2 className="text-3xl font-bold mb-4">Ready to Enhance Your Facility's Safety and Efficiency?</h2>
+          <h2 className="text-3xl font-bold mb-4">Ready to Enhance Your Facility&apos;s Safety and Efficiency?</h2>
           <p className="mb-8 max-w-2xl mx-auto text-lg">
-            Discover how EcoClaw's customizable autonomous solutions can address your specific hazardous waste management challenges and drive operational excellence.
+            Discover how EcoClaw&apos;s customizable autonomous solutions can address your specific hazardous waste management challenges and drive operational excellence.
           </p>
           <Link href="/contact" className="bg-white text-secondary font-semibold py-3 px-8 rounded-full hover:bg-gray-200 transition duration-300 text-lg">
             Request a Consultation

@@ -92,7 +92,7 @@ export default function SolutionPage() {
                     <li>Arduino-based control logic.</li>
                  </ul>
                 <p className="text-lg text-muted-foreground">
-                This PoC provided tangible evidence of our system's feasibility and served as the foundation for the full-scale industrial solution. It allowed for iterative testing and refinement in a controlled setting.
+                This PoC provided tangible evidence of our system&apos;s feasibility and served as the foundation for the full-scale industrial solution. It allowed for iterative testing and refinement in a controlled setting.
                 </p>
             </div>
              {/* PoC Visual Placeholders */}
