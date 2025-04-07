@@ -51,8 +51,9 @@ void StateMachine::init() {
  * 主循环更新函数
  */
 void StateMachine::update() {
-    // 更新传感器数据
-    m_sensorManager.updateAll();
+    // 更新传感器数据, 我们传感器更新数据
+    //统一由主文件的loop函数进行更新
+    // m_sensorManager.updateAll();
     
     // 根据当前状态执行相应处理逻辑
     switch (m_currentState) {
