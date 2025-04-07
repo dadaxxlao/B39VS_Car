@@ -11,7 +11,7 @@
 #define BASE_ARRIVE_FORWARD_TIME 2000
 
 // 定义阈值常量
-#define OBJECT_DETECTION_THRESHOLD 30.0f  // 物体检测阈值，单位cm
+#define OBJECT_DETECTION_THRESHOLD 50.0f  // 物体检测阈值，单位cm
 
 /**
  * 构造函数

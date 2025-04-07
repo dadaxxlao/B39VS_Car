@@ -20,6 +20,7 @@ enum NavigationState {
     NAV_AVOIDING_RIGHT,      // 向右平移避障
     NAV_AVOIDING_FORWARD,    // 向前行驶绕过障碍物
     NAV_AVOIDING_LEFT,       // 向左平移寻找线
+    NAV_VERIFYING_ALL_WHITE, // 全白验证
     NAV_ERROR                // 导航错误状态
 };
 
@@ -50,9 +51,7 @@ private:
     unsigned long m_avoidForwardDuration; // 向前行驶时间 (ms)
     unsigned long m_avoidLeftDuration;  // 向左平移最大时间 (ms)
 
-    
-    // 时间控制
-    unsigned long m_actionStartTime;  // 动作开始时间
+    // 丢线恢复相关
     unsigned long m_lineLostStartTime; // 丢线起始时间
     unsigned long m_maxLineLostTime;   // 最大允许丢线时间
     

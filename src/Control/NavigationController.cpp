@@ -17,7 +17,7 @@ NavigationController::NavigationController(SensorManager& sm, MotionController& 
     , m_triggerType(LineFollower::TRIGGER_NONE)
     , m_actionStartTime(0)
     , m_obstacleAvoidanceStartTime(0)
-    , m_obstacleThreshold(5.0)      // 示例值: 5cm (来自ObstacleAvoidance.h)
+    , m_obstacleThreshold(7.0)      // 示例值: 7cm (来自ObstacleAvoidance.h)
     , m_avoidSpeed(100)             // 示例值: 100 (来自ObstacleAvoidance.h)
     , m_avoidRightDuration(1500)    // 示例值: 1500ms (来自ObstacleAvoidance.h)
     , m_avoidForwardDuration(3000)  // 示例值: 3000ms (来自ObstacleAvoidance.h)
