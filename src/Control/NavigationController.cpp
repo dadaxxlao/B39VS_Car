@@ -16,6 +16,12 @@ NavigationController::NavigationController(SensorManager& sm, MotionController& 
     , m_detectedJunctionType(NO_JUNCTION)
     , m_triggerType(LineFollower::TRIGGER_NONE)
     , m_actionStartTime(0)
+    , m_obstacleAvoidanceStartTime(0)
+    , m_obstacleThreshold(5.0)      // 示例值: 5cm (来自ObstacleAvoidance.h)
+    , m_avoidSpeed(100)             // 示例值: 100 (来自ObstacleAvoidance.h)
+    , m_avoidRightDuration(1500)    // 示例值: 1500ms (来自ObstacleAvoidance.h)
+    , m_avoidForwardDuration(3000)  // 示例值: 3000ms (来自ObstacleAvoidance.h)
+    , m_avoidLeftDuration(1700)     // 示例值: 1700ms (来自ObstacleAvoidance.h)
     , m_lineLostStartTime(0)
     , m_maxLineLostTime(2000)  // 默认2000毫秒，与原LineFollower保持一致
     , m_isLineLost(false)
@@ -23,6 +29,8 @@ NavigationController::NavigationController(SensorManager& sm, MotionController& 
     , m_sensorErrorCount(0)
 {
     // 构造函数初始化完成
+    Logger::info("NavCtrl", "Obstacle Avoidance parameters initialized: Threshold=%.1fcm, Speed=%d, Durations(R/F/L)=%lu/%lu/%lu ms",
+                m_obstacleThreshold, m_avoidSpeed, m_avoidRightDuration, m_avoidForwardDuration, m_avoidLeftDuration);
 }
 
 // PID控制封装方法
@@ -54,6 +62,29 @@ void NavigationController::applyPIDControl(float turnAmount, int baseSpeed) {
     
     Logger::debug("NavCtrl", "PID应用: 转向量=%f -> 动作=%s, 速度=%d", 
                  turnAmount, actionStr, calculatedTurnSpeed);
+}
+
+// 检查障碍物
+bool NavigationController::checkForObstacle() {
+    float distance = 0;
+    bool success = m_sensorManager.getDistanceCm(distance);
+
+    if (!success) {
+        // 传感器读取失败，可能需要增加错误计数或特定处理
+        Logger::warning("NavCtrl", "[CheckObstacle] 超声波传感器读取失败");
+        // 返回false可能导致不避障，如果超声波不可靠，可能需要调整策略
+        return false; 
+    }
+
+    // 检查距离是否在有效范围内并小于阈值
+    if (distance < m_obstacleThreshold && distance > 0) { // 添加 distance > 0 过滤无效读数
+        Logger::info("NavCtrl", "[CheckObstacle] 检测到障碍物，距离: %.2f cm (阈值: %.1f cm)", distance, m_obstacleThreshold);
+        return true;
+    }
+
+    // 可以在调试时取消注释下一行
+    // Logger::debug("NavCtrl", "[CheckObstacle] 未检测到障碍物，距离: %.2f cm", distance);
+    return false;
 }
 
 // 初始化函数
@@ -106,6 +137,21 @@ void NavigationController::update() {
                 m_sensorErrorCount = 0;
             }
             
+            // >>> 开始添加障碍物检测 (在成功读取红外之后，巡线逻辑之前) <<<
+            if (checkForObstacle()) {
+                // 检测到障碍物，开始避障流程
+                m_motionController.emergencyStop();
+                Logger::info("NavCtrl", "检测到障碍物! State -> NAV_AVOIDING_RIGHT");
+
+                // 切换到向右平移状态
+                m_currentState = NAV_AVOIDING_RIGHT;
+                m_obstacleAvoidanceStartTime = millis();
+                m_motionController.lateralRight(m_avoidSpeed);
+                Logger::debug("NavCtrl", "开始向右平移避障，速度: %d", m_avoidSpeed);
+                return; // 立即返回，避免执行后续巡线逻辑
+            }
+            // >>> 结束添加障碍物检测 <<<
+
             // 检测是否有线
             bool lineDetected = m_sensorManager.isLineDetected();
             
@@ -255,6 +301,76 @@ void NavigationController::update() {
             // 停止状态或错误状态，不执行任何操作
             break;
             
+        case NAV_AVOIDING_RIGHT: {
+            unsigned long currentTime = millis();
+            Logger::debug("NavCtrl", "[State:AVOIDING_RIGHT] Time elapsed: %lu ms", currentTime - m_obstacleAvoidanceStartTime);
+            if (currentTime - m_obstacleAvoidanceStartTime >= m_avoidRightDuration) {
+                // 右平移时间到，切换到向前行驶
+                Logger::info("NavCtrl", "右平移完成. State -> NAV_AVOIDING_FORWARD");
+                m_currentState = NAV_AVOIDING_FORWARD;
+                m_obstacleAvoidanceStartTime = currentTime;
+                m_motionController.moveForward(m_avoidSpeed);
+                Logger::debug("NavCtrl", "开始向前行驶避障，速度: %d", m_avoidSpeed);
+            }
+            // 否则，保持向右平移 (MotionController应保持上一个命令)
+            break;
+        }
+
+        case NAV_AVOIDING_FORWARD: {
+            unsigned long currentTime = millis();
+            Logger::debug("NavCtrl", "[State:AVOIDING_FORWARD] Time elapsed: %lu ms", currentTime - m_obstacleAvoidanceStartTime);
+            if (currentTime - m_obstacleAvoidanceStartTime >= m_avoidForwardDuration) {
+                // 向前行驶时间到，切换到向左平移
+                Logger::info("NavCtrl", "向前行驶完成. State -> NAV_AVOIDING_LEFT");
+                m_currentState = NAV_AVOIDING_LEFT;
+                m_obstacleAvoidanceStartTime = currentTime;
+                m_motionController.lateralLeft(m_avoidSpeed);
+                Logger::debug("NavCtrl", "开始向左平移寻找线，速度: %d", m_avoidSpeed);
+            }
+            // 否则，保持向前行驶
+            break;
+        }
+
+        case NAV_AVOIDING_LEFT: {
+            unsigned long currentTime = millis();
+            Logger::debug("NavCtrl", "[State:AVOIDING_LEFT] Time elapsed: %lu ms", currentTime - m_obstacleAvoidanceStartTime);
+            // 检查是否找到线
+            uint16_t sensorValues[8];
+            bool success = m_sensorManager.getInfraredSensorValues(sensorValues);
+
+            if (success) {
+                // 检查中间两个传感器(3和4)是否检测到黑线 (值为0)
+                // 注意: 传感器索引和黑线值(0代表黑线)需要根据实际硬件确认
+                if (sensorValues[3] == 0 || sensorValues[4] == 0) {
+                    m_motionController.emergencyStop();
+                    char sensorStr[40];
+                    formatSensorArray(sensorValues, sensorStr, sizeof(sensorStr));
+                    Logger::info("NavCtrl", "在左平移时找到线! 传感器: %s. State -> NAV_FOLLOWING_LINE", sensorStr);
+                    m_currentState = NAV_FOLLOWING_LINE;
+                    // 可以在这里重置一些巡线相关状态，例如 m_isLineLost = false;
+                    m_isLineLost = false; 
+                    m_lineLostStartTime = 0;
+                    return; // 完成避障，返回巡线
+                }
+            } else {
+                 Logger::warning("NavCtrl", "[State:AVOIDING_LEFT] 红外传感器读取失败");
+                 // 这里可以考虑是否也停止，或者继续尝试直到超时
+            }
+
+            // 检查是否超时
+            if (currentTime - m_obstacleAvoidanceStartTime >= m_avoidLeftDuration) {
+                m_motionController.emergencyStop();
+                Logger::warning("NavCtrl", "左平移超时 (%lu ms)! 强制返回巡线. State -> NAV_FOLLOWING_LINE", m_avoidLeftDuration);
+                m_currentState = NAV_FOLLOWING_LINE; // 超时也尝试返回巡线状态
+                // 可以在这里重置一些巡线相关状态
+                m_isLineLost = false; 
+                m_lineLostStartTime = 0;
+                // 可能需要一个错误状态或特殊处理？暂时返回巡线
+            }
+            // 否则，保持向左平移
+            break;
+        }
+        
         default:
             // 未知状态，记录错误
             Logger::error("NavCtrl", "未知的导航状态: %d", m_currentState);
@@ -277,6 +393,9 @@ JunctionType NavigationController::getDetectedJunctionType() const {
 void NavigationController::resumeFollowing() {
     // 重置路口类型
     m_detectedJunctionType = NO_JUNCTION;
+    // 重置丢线状态，以防在避障完成时恰好处于丢线恢复中
+    m_isLineLost = false;
+    m_lineLostStartTime = 0;
     // 恢复巡线状态
     Logger::info("NavCtrl", "State -> FOLLOWING_LINE (Resumed)");
     m_currentState = NAV_FOLLOWING_LINE;
