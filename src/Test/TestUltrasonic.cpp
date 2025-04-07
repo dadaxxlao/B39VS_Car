@@ -12,7 +12,7 @@ void setup() {
   Logger::init();
   
   // 设置串口波特率为9600，与测试README文档相符
-  Serial.begin(9600);
+  Serial.begin(115200);
   while (!Serial) {
     ; // 等待串口连接
   }
