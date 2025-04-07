@@ -71,7 +71,7 @@ export default function SolutionPage() {
                <li>Integrates necessary sensors: one color sensor, multiple distance sensors.</li>
                <li>Can incorporate additional peripherals like IR sensors or limit switches as needed for specific functions.</li>
                <li>Compact design, aiming for a 30cm x 30cm x 30cm volume.</li>
-               <li>Includes a charging solution designed for the robot's base, enabling autonomous charging cycles.</li>
+               <li>Includes a charging solution designed for the robot&apos;s base, enabling autonomous charging cycles.</li>
             </ul>
          </section>
       </div>

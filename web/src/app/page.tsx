@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import Image from 'next/image'; // Keep Image import
+import VideoPlayer from './components/VideoPlayer';
 
 export default function HomePage() {
   return (
@@ -77,12 +78,9 @@ export default function HomePage() {
                View Technical Details &rarr;
              </Link>
            </div>
-           {/* Video Embed */}
+           {/* Video Embed - 使用客户端组件 */}
            <div className="rounded-lg shadow-md overflow-hidden"> {/* Added container for better styling */}
-             <video controls className="w-full h-auto" poster="/Arm.jpg"> {/* Updated poster from /Arm.png to /Arm.jpg */}
-               <source src="/TestMovie.mp4" type="video/mp4" />
-               Your browser does not support the video tag.
-             </video>
+             <VideoPlayer posterSrc="/Arm.jpg" videoSrc="/TestMovie.mp4" />
            </div>
          </div>
       </section>
