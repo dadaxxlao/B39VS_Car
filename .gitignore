@@ -4,7 +4,4 @@
 .vscode/launch.json
 .vscode/ipch
 .DS_Store
-get-platformio.py
-Design.md
-src/Test/
-output.txt
+
