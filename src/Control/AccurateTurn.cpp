@@ -91,36 +91,39 @@ void AccurateTurn::update() {
     // 3. Check for Stop Condition (Line Detected)
     // Assuming 0 means black line is detected on sensors 3 and 4 (middle ones)
     // IMPORTANT: Verify sensor indexing and black line value for your specific hardware!
-    if (m_currentState == AT_TURNING_UTURN || m_currentState == AT_TURNING_LEFT){
-        if (sensorValues[4] == 0) {
-        m_motionController.emergencyStop();
-        m_currentState = AT_COMPLETED;
-        char sensorStr[40]; // Buffer for sensor values string
-        snprintf(sensorStr, sizeof(sensorStr), "[%d%d%d%d%d%d%d%d]", 
-                 sensorValues[0], sensorValues[1], sensorValues[2], sensorValues[3],
-                 sensorValues[4], sensorValues[5], sensorValues[6], sensorValues[7]);
-        Logger::info("AccurateTurn", "Turn completed. Line detected by middle sensors. Sensors: %s State: COMPLETED", sensorStr);
-        return;
+    switch (m_currentState) {
+        case AT_TURNING_LEFT:
+            if (sensorValues[4] == 0 || sensorValues[3] == 0) {
+                m_motionController.emergencyStop();
+                m_currentState = AT_COMPLETED;
+                break;
+            }
+            break;
+        case AT_TURNING_RIGHT:
+            if (sensorValues[3] == 0 || sensorValues[4] == 0) {
+                m_motionController.emergencyStop();
+                m_currentState = AT_COMPLETED;
+                break;
+            }
+            break;  
+        case AT_TURNING_UTURN:
+            if (sensorValues[4] == 0 || sensorValues[3] == 0) {
+                m_motionController.emergencyStop();
+                m_currentState = AT_COMPLETED;
+                break;
+            }
+            break;
+        default:
+            break;
     }
-    if (m_currentState == AT_TURNING_RIGHT){
-        if (sensorValues[3] == 0) {
-        m_motionController.emergencyStop();
-        m_currentState = AT_COMPLETED;
-        char sensorStr[40]; // Buffer for sensor values string
-        snprintf(sensorStr, sizeof(sensorStr), "[%d%d%d%d%d%d%d%d]", 
-                 sensorValues[0], sensorValues[1], sensorValues[2], sensorValues[3],
-                 sensorValues[4], sensorValues[5], sensorValues[6], sensorValues[7]);
-        Logger::info("AccurateTurn", "Turn completed. Line detected by middle sensors. Sensors: %s State: COMPLETED", sensorStr);
-        return;
-    }
+    
 
     }
     
     
     // If still turning and no stop condition met, continue (motor command persists)
     // Logger::debug("AccurateTurn", "Turning... State: %d", m_currentState); // Optional debug log
-}
-}
+
 
 
 AccurateTurnState AccurateTurn::getCurrentState() const {

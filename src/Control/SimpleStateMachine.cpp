@@ -173,7 +173,7 @@ void SimpleStateMachine::update() {
 #endif
             return;
         }
-        m_navigationController.resumeFollowing();
+        //m_navigationController.resumeFollowing();
         float distance = m_sensorManager.getUltrasonicDistance();
         
         if (distance < OBJECT_DETECTION_THRESHOLD) {
