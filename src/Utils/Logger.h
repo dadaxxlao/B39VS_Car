@@ -16,10 +16,12 @@
 #define LOG_LEVEL_INFO_STR    F("INFO")
 #define LOG_LEVEL_DEBUG_STR   F("DEBUG")
 
+
 // 通信类型枚举
 enum CommunicationType {
     COMM_SERIAL, // 普通串口
     COMM_BT,     // 蓝牙
+    COMM_ESP32,  // ESP32通信
     COMM_COUNT   // 通信类型数量
 };
 

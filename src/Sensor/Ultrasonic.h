@@ -39,6 +39,18 @@ public:
     // 判断是否有障碍物在指定距离内
     bool isObstacleDetected(float threshold);
     
+    /**
+     * @brief 获取稳定过滤后的距离读数（厘米）。
+     *
+     * 该函数进行多次测量，去除最大和最小值，然后计算剩余值的平均值，
+     * 以减少瞬时噪声或异常读数的影响。
+     *
+     * @param samples 要进行的测量次数 (默认 10)。
+     * @param delayMs 每次测量之间的延迟时间（毫秒）(默认 10)。
+     * @return float 稳定后的平均距离（厘米）。如果有效读数少于3个，返回 -1.0。
+     */
+    float getStableDistanceCm(int samples = 10, int delayMs = 2);
+
     // 调试打印
     void debugPrint();
 };

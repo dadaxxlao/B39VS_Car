@@ -63,6 +63,19 @@ public:
     
     // 判断是否有障碍物在指定距离内
     bool isObstacleDetected(float threshold);
+
+    // 获取稳定过滤后的距离读数（厘米）
+    float getStableDistanceCm(int samples = 10, int delayMs = 2);
+    
+    // 获取超声波脉冲持续时间
+    unsigned long measurePulseDuration(){
+        return ultrasonicSensor.measurePulseDuration();
+    }
+
+    // 获取超声波距离（厘米）- 从脉冲持续时间计算
+    float getDistanceCmFromDuration(unsigned long duration){
+        return ultrasonicSensor.getDistanceCmFromDuration(duration);
+    }
     
     // --- 红外传感器 ---
     

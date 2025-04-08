@@ -22,6 +22,6 @@ enum class SensorStatus {
 
 // 常量定义
 const int INFRARED_NO_LINE = 0;  // 未检测到线时的返回值
-const unsigned long ULTRASONIC_PULSE_TIMEOUT = 30000; // 30ms超声波脉冲超时
+const unsigned long ULTRASONIC_PULSE_TIMEOUT = 10000; // 30ms超声波脉冲超时
 
 #endif // SENSOR_COMMON_H 

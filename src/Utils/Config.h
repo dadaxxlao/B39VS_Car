@@ -123,7 +123,7 @@ enum LocateSubState {
 // 蓝牙功能配置
 #define ENABLE_BLUETOOTH     0
 // ESP32通信功能配置
-#define ENABLE_ESP           1
+#define ENABLE_ESP           0
 // 可同时启用多种通信方式
 
 // Navigation Controller Stop-and-Check Parameters

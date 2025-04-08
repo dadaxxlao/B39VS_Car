@@ -4,7 +4,7 @@
 
 这个增强的日志系统专为Arduino项目设计，提供了灵活、高效且功能丰富的日志记录能力。系统特点包括：
 
-- 支持多种输出通道（串口、蓝牙等）
+- 支持多种输出通道（串口、蓝牙、ESP32等）
 - 不同日志级别（ERROR、WARNING、INFO、DEBUG）
 - 时间戳和标签支持
 - 针对每个通道的独立配置
@@ -53,6 +53,7 @@ Logger::setGlobalLogLevel(LOG_LEVEL_DEBUG);  // 显示所有日志
 // 为特定通道设置日志级别
 Logger::setLogLevel(COMM_SERIAL, LOG_LEVEL_INFO);  // 串口只显示INFO及以上级别
 Logger::setLogLevel(COMM_BT, LOG_LEVEL_ERROR);     // 蓝牙只显示ERROR级别
+Logger::setLogLevel(COMM_ESP32, LOG_LEVEL_DEBUG);  // ESP32显示所有日志级别
 ```
 
 ### 配置通信通道
@@ -68,6 +69,11 @@ void setup() {
   btSerial.begin(9600);
   Logger::setStream(COMM_BT, &btSerial);
   Logger::enableComm(COMM_BT, true);
+  
+  // 初始化并设置ESP32串口
+  Serial2.begin(ESP_BAUD_RATE);
+  Logger::setStream(COMM_ESP32, &Serial2);
+  Logger::enableComm(COMM_ESP32, true);
 }
 ```
 
@@ -77,7 +83,12 @@ void setup() {
 // 禁用蓝牙日志（节省资源）
 Logger::enableComm(COMM_BT, false);
 
-// 启用其他通信日志...
+// 启用ESP32日志
+Logger::enableComm(COMM_ESP32, true);
+
+// 使用Config.h中的定义控制通道开关
+Logger::enableComm(COMM_BT, ENABLE_BLUETOOTH);
+Logger::enableComm(COMM_ESP32, ENABLE_ESP);
 ```
 
 ## 4. 高级特性
@@ -148,6 +159,7 @@ Logger::configureChannel(COMM_BT, config);
 ```cpp
 #include "Utils/Logger.h"
 #include <SoftwareSerial.h>
+#include "Utils/Config.h"
 
 // 定义引脚
 #define BT_RX_PIN 2
@@ -163,7 +175,12 @@ void setup() {
   // 配置蓝牙
   btSerial.begin(9600);
   Logger::setStream(COMM_BT, &btSerial);
-  Logger::enableComm(COMM_BT, true);
+  Logger::enableComm(COMM_BT, ENABLE_BLUETOOTH);
+  
+  // 配置ESP32 (使用Serial2)
+  Serial2.begin(ESP_BAUD_RATE);
+  Logger::setStream(COMM_ESP32, &Serial2);
+  Logger::enableComm(COMM_ESP32, ENABLE_ESP);
   
   // 配置日志级别
   Logger::setGlobalLogLevel(LOG_LEVEL_INFO);
@@ -210,9 +227,10 @@ void loop() {
 - SD卡日志支持
 - 循环缓冲区记录
 - 更多的输出格式选项
-- 无线日志传输
+- 已实现ESP32无线日志传输
+- 支持更多无线通信协议（如LoRa等）
 - 动态内存分配的标签支持
 
 ---
 
-*文档版本: 2.0* 
+*文档版本: 2.1* 

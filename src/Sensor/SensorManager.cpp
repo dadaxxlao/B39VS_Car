@@ -131,6 +131,10 @@ void SensorManager::updateColor() {
     // 保留此方法以兼容现有代码
 }
 
+float SensorManager::getStableDistanceCm(int samples, int delayMs) {
+    return ultrasonicSensor.getStableDistanceCm(samples, delayMs);
+}
+
 bool SensorManager::getDistanceCm(float& distance) {
     if (!ultrasonicSensor.isInitialized()) {
         Logger::warning("SensorMgr", "尝试从未初始化的超声波传感器获取距离");

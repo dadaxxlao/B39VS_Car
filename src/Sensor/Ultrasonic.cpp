@@ -1,6 +1,6 @@
 #include "Ultrasonic.h"
 #include "../Utils/Logger.h"
-
+#include <stdlib.h>  // 为了 qsort
 UltrasonicSensor::UltrasonicSensor() : trigPin(0), echoPin(0), initialized(false), lastPulseDuration(0) {
 }
 
@@ -112,3 +112,68 @@ void UltrasonicSensor::debugPrint() {
                  initialized ? "已初始化" : "未初始化", trigPin, echoPin, 
                  lastPulseDuration, distance);
 } 
+
+// qsort 的比较函数
+static int compareFloats(const void* a, const void* b) {
+    float fa = *(const float*)a;
+    float fb = *(const float*)b;
+    // 基本比较
+    if (fa < fb) return -1;
+    if (fa > fb) return 1;
+    return 0;
+}
+
+float UltrasonicSensor::getStableDistanceCm(int samples, int delayMs) {
+    if (!initialized) {
+        Logger::warning("Ultrasonic", "尝试在未初始化的状态下获取稳定距离");
+        return -1.0f;
+    }
+
+    if (samples < 3) {
+         Logger::warning("Ultrasonic", "获取稳定距离所需的样本数至少为 3，请求为 %d", samples);
+         return -1.0f; // 需要至少3个样本才能去掉最大最小值
+    }
+
+    float readings[10]; // 预分配最大样本数为10
+    int validCount = 0;
+
+    // 1. 进行多次测量
+    for (int i = 0; i < samples; ++i) {
+        float dist = getDistance();
+        // 2. 只存储有效读数 (大于 0)
+        if (dist > 0) {
+            readings[validCount++] = dist;
+        } else {
+            // 可以记录无效读数，帮助调试
+            // Logger::debug("Ultrasonic", "样本 %d/%d 无效 (%.2f)", i + 1, samples, dist);
+        }
+        // 3. 每次测量后延迟
+        if (i < samples - 1) { // 最后一次测量后不需要延迟
+           delay(delayMs);
+        }
+    }
+
+    // 4. 检查有效读数数量
+    if (validCount < 3) {
+        Logger::warning("Ultrasonic", "有效读数不足 (%d/%d)，无法计算稳定距离", validCount, samples);
+        return -1.0f; // 不足以移除最大最小值并计算平均
+    }
+
+    // 5. 对有效读数进行排序 (使用 stdlib 的 qsort)
+    qsort(readings, validCount, sizeof(float), compareFloats);
+
+    // 6. 计算去除最大最小值后的总和
+    float sum = 0; 
+    for (int i = 1; i < validCount - 1; ++i) {
+        sum += readings[i];
+    }
+
+    // 7. 计算平均值
+    float averageDistance = sum / (validCount - 2);
+
+    Logger::debug("Ultrasonic", "稳定距离计算: %d 个样本, %d 个有效读数, 移除 %.2f 和 %.2f, 平均值: %.2f cm",
+                  samples, validCount, readings[0], readings[validCount - 1], averageDistance);
+
+    // 8. 返回平均距离
+    return averageDistance;
+}

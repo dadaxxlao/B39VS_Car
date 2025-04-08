@@ -68,8 +68,15 @@ void NavigationController::applyPIDControl(float turnAmount, int baseSpeed) {
 
 // 检查障碍物
 bool NavigationController::checkForObstacle() {
-    float distance = 0;
-    bool success = m_sensorManager.getDistanceCm(distance);
+    float distance;
+    bool success = false;
+        
+    // 测量新的距离
+    unsigned long duration = m_sensorManager.measurePulseDuration();
+    if (duration > 0 && duration < ULTRASONIC_PULSE_TIMEOUT) {
+        distance = m_sensorManager.getDistanceCmFromDuration(duration);
+        success = true;
+    }
 
     if (!success) {
         // 传感器读取失败，可能需要增加错误计数或特定处理

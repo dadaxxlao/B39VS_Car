@@ -94,9 +94,18 @@ void SimpleStateMachine::update() {
     // 使用if-else处理不同状态
     if (m_currentState == INITIALIZED) {
         // 等待触发信号
-        float distance = m_sensorManager.getUltrasonicDistance();
+        float distance;
+        bool success = false;
         
-        if (distance < 30.0f && distance > 0) {
+        // 测量新的距离
+        unsigned long duration = m_sensorManager.measurePulseDuration();
+        if (duration > 0 && duration < ULTRASONIC_PULSE_TIMEOUT) {
+            distance = m_sensorManager.getDistanceCmFromDuration(duration);
+            success = true;
+        }
+        
+        if (success) {
+            if (distance < 30.0f && distance > 0) {
 #if USE_MINIMAL_LOGGING == 0
             Logger::info("SimpleStateMachine", "检测到启动触发，距离: %.2f cm", distance);
 #endif
@@ -104,6 +113,11 @@ void SimpleStateMachine::update() {
             delay(500);
             transitionTo(OBJECT_FIND);
         }
+        } else {
+            Logger::warning("SimpleStateMachine", "无法测量有效距离");
+        }
+
+
     }
     else if (m_currentState == OBJECT_FIND) {
         // 寻找物块状态
@@ -174,7 +188,15 @@ void SimpleStateMachine::update() {
             return;
         }
         //m_navigationController.resumeFollowing();
-        float distance = m_sensorManager.getUltrasonicDistance();
+        float distance;
+        bool success = false;
+        
+        // 测量新的距离
+        unsigned long duration = m_sensorManager.measurePulseDuration();
+        if (duration > 0 && duration < ULTRASONIC_PULSE_TIMEOUT) {
+            distance = m_sensorManager.getDistanceCmFromDuration(duration);
+            success = true;
+        }
         
         if (distance < OBJECT_DETECTION_THRESHOLD) {
 #if USE_MINIMAL_LOGGING == 0
@@ -516,7 +538,7 @@ void SimpleStateMachine::update() {
         if (navState == NAV_AT_JUNCTION) {
             JunctionType junction = m_navigationController.getDetectedJunctionType();
             
-            if (junction == T_FORWARD || junction == LEFT_TURN) {
+            if (junction == T_FORWARD || junction == LEFT_TURN || junction == RIGHT_TURN) {
                 // Replace MotionController turn with AccurateTurn
                 m_accurateTurn.startTurnLeft();
                 m_flags.m_isTurning = true;
@@ -656,7 +678,15 @@ void SimpleStateMachine::update() {
         // 错误状态
         m_motionController.emergencyStop();
         
-        float distance = m_sensorManager.getUltrasonicDistance();
+        float distance;
+        bool success = false;
+        
+        // 测量新的距离
+        unsigned long duration = m_sensorManager.measurePulseDuration();
+        if (duration > 0 && duration < ULTRASONIC_PULSE_TIMEOUT) {
+            distance = m_sensorManager.getDistanceCmFromDuration(duration);
+            success = true;
+        }
         static float lastDistance = distance;
         
         if (abs(distance - lastDistance) > 20.0f) {
