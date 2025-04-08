@@ -3,6 +3,7 @@
 #include <AsyncTCP.h>
 #include <ESPAsyncWebServer.h>
 #include <HardwareSerial.h>
+#include <algorithm> // 添加 algorithm 头文件
 
 // --- 配置 ---
 const char* ssid = "S23";
@@ -10,8 +11,8 @@ const char* password = "12345678";
 
 // 连接 Arduino 的 UART 配置
 #define ARDUINO_SERIAL_PORT 1 // 使用 ESP32 的 UART1
-#define ARDUINO_RX_PIN 8      // ESP32 RX 连接 Arduino TX (Pin 1)
-#define ARDUINO_TX_PIN 9      // ESP32 TX 连接 Arduino RX (Pin 0)
+#define ARDUINO_RX_PIN 1      // ESP32 RX GPIO1 连接 Arduino TX2 PIN16 
+#define ARDUINO_TX_PIN 0      // ESP32 TX GPIO0 连接 Arduino RX2 PIN17 
 #define ARDUINO_BAUD_RATE 115200 // 必须与 Arduino Serial.begin() 的波特率一致
 
 // Web 服务器 & WebSocket
@@ -166,15 +167,22 @@ void sendBufferedUartData() {
 // --- Arduino Setup ---
 void setup() {
   Serial.begin(115200); // ESP32 自身的日志串口
-  Serial.println("\nESP32 Remote Serial Bridge");
+  // 等待串口连接建立 (可选，但有时有用)
+  while (!Serial) {
+    delay(10); 
+  }
+  Serial.println("\n--- ESP32 Setup Started ---"); 
+  Serial.println("ESP32 Remote Serial Bridge");
 
   // 初始化连接 Arduino 的串口
-  Serial.printf("Initializing Arduino Serial (UART%d): RX=%d, TX=%d, Baud=%d\n",
+  Serial.println("Initializing Arduino Serial...");
+  Serial.printf("Using UART%d: RX=%d, TX=%d, Baud=%d\n",
                 ARDUINO_SERIAL_PORT, ARDUINO_RX_PIN, ARDUINO_TX_PIN, ARDUINO_BAUD_RATE);
   ArduinoSerial.begin(ARDUINO_BAUD_RATE, SERIAL_8N1, ARDUINO_RX_PIN, ARDUINO_TX_PIN);
+  Serial.println("Arduino Serial Initialized.");
 
   // 连接 WiFi
-  Serial.printf("Connecting to WiFi: %s ", ssid);
+  Serial.printf("Attempting to connect to WiFi SSID: %s ...", ssid);
   WiFi.mode(WIFI_STA);
   WiFi.begin(ssid, password);
   unsigned long startAttemptTime = millis();
@@ -184,21 +192,23 @@ void setup() {
   }
 
   if (WiFi.status() != WL_CONNECTED) {
-      Serial.println("\nFailed to connect to WiFi. Restarting...");
+      Serial.println("\nWiFi Connection Failed! Restarting...");
       delay(1000);
       ESP.restart();
+  } else {
+      Serial.println("\nWiFi Connected!");
+      Serial.print("IP Address: ");
+      Serial.println(WiFi.localIP());
   }
 
-  Serial.println("\nWiFi Connected!");
-  Serial.print("IP Address: ");
-  Serial.println(WiFi.localIP());
-
   // 设置 WebSocket 事件回调
+  Serial.println("Setting up WebSocket...");
   ws.onEvent(onWebSocketEvent);
-  // 将 WebSocket 处理器添加到服务器
   server.addHandler(&ws);
+  Serial.println("WebSocket Handler Added.");
 
   // 设置 HTTP 服务器路由，提供网页
+  Serial.println("Setting up HTTP Server Routes...");
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
     request->send_P(200, "text/html", HTML_PAGE);
   });
@@ -207,25 +217,36 @@ void setup() {
   server.onNotFound([](AsyncWebServerRequest *request){
     request->send(404, "text/plain", "Not found");
   });
+  Serial.println("HTTP Routes Configured.");
 
 
   // 启动服务器
+  Serial.println("Starting Web Server...");
   server.begin();
-  Serial.println("Web Server and WebSocket started. Ready.");
+  Serial.println("--- ESP32 Setup Complete. Web Server and WebSocket started. Ready. ---");
 }
 
 // --- Arduino Loop ---
+unsigned long lastLoopMsgTime = 0;
 void loop() {
+  // 添加一个标记表明 loop 正在运行，但不要过于频繁输出
+  if (millis() - lastLoopMsgTime > 5000) { // 每 5 秒输出一次
+    Serial.println("[Loop] Running...");
+    lastLoopMsgTime = millis();
+  }
+
   // 1. 检查 Arduino 串口是否有数据传入
   bool dataRead = false;
   // 优化读取：一次读取所有可用字节，减少循环次数
   size_t availableBytes = ArduinoSerial.available();
   if (availableBytes > 0) {
-      size_t readLen = min(availableBytes, sizeof(uartBuffer) - uartBufferPos -1); // 避免缓冲区溢出
+      // 使用 std::min 并确保类型一致
+      size_t spaceInBuffer = sizeof(uartBuffer) - uartBufferPos - 1; // 计算缓冲区剩余空间
+      size_t readLen = std::min(availableBytes, spaceInBuffer); // 避免缓冲区溢出
       if (readLen > 0) {
           size_t actuallyRead = ArduinoSerial.readBytes(&uartBuffer[uartBufferPos], readLen);
           uartBufferPos += actuallyRead;
-          uartBuffer[uartBufferPos] = '\0'; // 正确地 null 终止缓冲区
+          uartBuffer[uartBufferPos] = '\0'; // 确保缓冲区以 null 结尾（如果用 textAll） - 注意这里改为 \0
           dataRead = true;
       }
       // 如果缓冲区满了，立即尝试发送
@@ -250,4 +271,4 @@ void loop() {
 
   // 短暂延时避免过于繁忙 (可选)
   // delay(1);
-} 
+}

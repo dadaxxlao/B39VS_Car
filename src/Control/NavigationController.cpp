@@ -19,8 +19,8 @@ NavigationController::NavigationController(SensorManager& sm, MotionController& 
     , m_obstacleAvoidanceStartTime(0)
     , m_obstacleThreshold(7.0)      // 示例值: 7cm (来自ObstacleAvoidance.h)
     , m_avoidSpeed(100)             // 示例值: 100 (来自ObstacleAvoidance.h)
-    , m_avoidRightDuration(1500)    // 示例值: 1500ms (来自ObstacleAvoidance.h)
-    , m_avoidForwardDuration(3000)  // 示例值: 3000ms (来自ObstacleAvoidance.h)
+    , m_avoidRightDuration(1300)    // 示例值: 1500ms (来自ObstacleAvoidance.h)
+    , m_avoidForwardDuration(2500)  // 示例值: 3000ms (来自ObstacleAvoidance.h)
     , m_avoidLeftDuration(1700)     // 示例值: 1700ms (来自ObstacleAvoidance.h)
     , m_lineLostStartTime(0)
     , m_maxLineLostTime(2000)  // 默认2000毫秒，与原LineFollower保持一致
