@@ -141,7 +141,7 @@ bool SensorManager::getDistanceCm(float& distance) {
     // 简单的异常值过滤
     if (newDistance <= 0 || newDistance > 400) {
         // 测量值异常，返回上次有效值
-        Logger::warning("SensorMgr", "超声波测量异常值: %.2f，使用上次值: %.2f", 
+        Logger::warning("SensorMgr", "超声波测量异常值: %f，使用上次值: %f", 
                         newDistance, lastValidDistance);
         
         // 如果有上次有效值，则使用它

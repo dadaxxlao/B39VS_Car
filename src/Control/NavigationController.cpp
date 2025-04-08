@@ -425,10 +425,11 @@ void NavigationController::update() {
                     char sensorStr[40];
                     formatSensorArray(sensorValues, sensorStr, sizeof(sensorStr));
                     Logger::info("NavCtrl", "在左平移时找到线! 传感器: %s. State -> NAV_FOLLOWING_LINE", sensorStr);
-                    m_currentState = NAV_FOLLOWING_LINE;
+                    delay(500);
                     // 可以在这里重置一些巡线相关状态，例如 m_isLineLost = false;
                     m_isLineLost = false; 
                     m_lineLostStartTime = 0;
+                    m_currentState = NAV_FOLLOWING_LINE;
                     return; // 完成避障，返回巡线
                 }
             } else {

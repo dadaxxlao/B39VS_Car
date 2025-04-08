@@ -20,7 +20,6 @@
 enum CommunicationType {
     COMM_SERIAL, // 普通串口
     COMM_BT,     // 蓝牙
-    COMM_ESP,    // ESP
     COMM_COUNT   // 通信类型数量
 };
 
@@ -89,7 +88,7 @@ public:
             commConfigs[i].stream = nullptr;
             commConfigs[i].config.logLevel = LOG_LEVEL_INFO;
             commConfigs[i].config.useTimestamp = (i == COMM_SERIAL); // 默认只在Serial上显示时间戳
-            commConfigs[i].config.usePrefix = (i != COMM_SERIAL);    // 默认在非Serial上使用前缀
+            commConfigs[i].config.usePrefix = false; // Disable prefix for all non-Serial channels by default
             commConfigs[i].config.tag[0] = '\0';                     // 默认无标签
         }
         
@@ -98,7 +97,6 @@ public:
         commConfigs[COMM_SERIAL].stream = &Serial;
         
         commConfigs[COMM_BT].enabled = ENABLE_BLUETOOTH;
-        commConfigs[COMM_ESP].enabled = ENABLE_ESP;
         
         // 初始化标签日志级别数组
         tagLogLevelCount = 0;

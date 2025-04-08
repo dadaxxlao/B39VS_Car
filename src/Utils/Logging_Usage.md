@@ -4,7 +4,7 @@
 
 这个增强的日志系统专为Arduino项目设计，提供了灵活、高效且功能丰富的日志记录能力。系统特点包括：
 
-- 支持多种输出通道（串口、蓝牙、ESP等）
+- 支持多种输出通道（串口、蓝牙等）
 - 不同日志级别（ERROR、WARNING、INFO、DEBUG）
 - 时间戳和标签支持
 - 针对每个通道的独立配置
@@ -77,8 +77,7 @@ void setup() {
 // 禁用蓝牙日志（节省资源）
 Logger::enableComm(COMM_BT, false);
 
-// 启用ESP通信日志
-Logger::enableComm(COMM_ESP, true);
+// 启用其他通信日志...
 ```
 
 ## 4. 高级特性

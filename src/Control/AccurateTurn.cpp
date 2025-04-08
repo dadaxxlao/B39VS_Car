@@ -3,7 +3,7 @@
 // Define the default timeout duration in milliseconds
 // Consider moving this to Config.h if it needs to be configurable
 static const unsigned long DEFAULT_ACCURATE_TURN_TIMEOUT_MS = 2000; 
-static const unsigned long DEFAULT_ACCURATE_TURN_DELAY_MS = 50;
+static const unsigned long DEFAULT_ACCURATE_TURN_DELAY_MS = 500;
 
 AccurateTurn::AccurateTurn(MotionController& mc, SensorManager& sm)
     : m_motionController(mc)

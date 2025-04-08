@@ -40,8 +40,8 @@
 #define BT_BAUD_RATE         9600
 
 // ESP32通信引脚和参数
-#define ESP_RX_PIN           18  // Arduino接收，连接到ESP32的TX
-#define ESP_TX_PIN           19  // Arduino发送，连接到ESP32的RX
+#define ESP_RX_PIN           16  // Arduino接收，连接到ESP32的TX
+#define ESP_TX_PIN           17  // Arduino发送，连接到ESP32的RX
 #define ESP_BAUD_RATE        115200
 
 // I2C地址
