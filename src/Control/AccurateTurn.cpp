@@ -2,7 +2,7 @@
 
 // Define the default timeout duration in milliseconds
 // Consider moving this to Config.h if it needs to be configurable
-static const unsigned long DEFAULT_ACCURATE_TURN_TIMEOUT_MS = 2000; 
+static const unsigned long DEFAULT_ACCURATE_TURN_TIMEOUT_MS = 10000; 
 static const unsigned long DEFAULT_ACCURATE_TURN_DELAY_MS = 500;
 
 AccurateTurn::AccurateTurn(MotionController& mc, SensorManager& sm)
@@ -91,7 +91,8 @@ void AccurateTurn::update() {
     // 3. Check for Stop Condition (Line Detected)
     // Assuming 0 means black line is detected on sensors 3 and 4 (middle ones)
     // IMPORTANT: Verify sensor indexing and black line value for your specific hardware!
-    if (sensorValues[3] == 0 || sensorValues[4] == 0) {
+    if (m_currentState == AT_TURNING_UTURN || m_currentState == AT_TURNING_LEFT){
+        if (sensorValues[4] == 0) {
         m_motionController.emergencyStop();
         m_currentState = AT_COMPLETED;
         char sensorStr[40]; // Buffer for sensor values string
@@ -101,10 +102,26 @@ void AccurateTurn::update() {
         Logger::info("AccurateTurn", "Turn completed. Line detected by middle sensors. Sensors: %s State: COMPLETED", sensorStr);
         return;
     }
+    if (m_currentState == AT_TURNING_RIGHT){
+        if (sensorValues[3] == 0) {
+        m_motionController.emergencyStop();
+        m_currentState = AT_COMPLETED;
+        char sensorStr[40]; // Buffer for sensor values string
+        snprintf(sensorStr, sizeof(sensorStr), "[%d%d%d%d%d%d%d%d]", 
+                 sensorValues[0], sensorValues[1], sensorValues[2], sensorValues[3],
+                 sensorValues[4], sensorValues[5], sensorValues[6], sensorValues[7]);
+        Logger::info("AccurateTurn", "Turn completed. Line detected by middle sensors. Sensors: %s State: COMPLETED", sensorStr);
+        return;
+    }
+
+    }
+    
     
     // If still turning and no stop condition met, continue (motor command persists)
     // Logger::debug("AccurateTurn", "Turning... State: %d", m_currentState); // Optional debug log
 }
+}
+
 
 AccurateTurnState AccurateTurn::getCurrentState() const {
     return m_currentState;
@@ -112,4 +129,15 @@ AccurateTurnState AccurateTurn::getCurrentState() const {
 
 bool AccurateTurn::isTurnComplete() const {
     return (m_currentState == AT_COMPLETED || m_currentState == AT_TIMED_OUT);
+}
+
+void AccurateTurn::reset() {
+    if (m_currentState != AT_IDLE) {
+        m_currentState = AT_IDLE;
+        Logger::info("AccurateTurn", "State reset to IDLE.");
+        return;
+    } else {
+        // Optionally log that it was already idle, or do nothing
+        // Logger::debug("AccurateTurn", "Reset called but already in IDLE state.");
+    }
 } 

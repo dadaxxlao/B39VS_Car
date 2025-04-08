@@ -98,8 +98,6 @@ enum SystemState {
     INITIALIZED,        // 初始化状态
     OBJECT_FIND,        // 寻找物块
     ULTRASONIC_DETECT,  // 超声波检测
-    ZONE_JUDGE,         // 区域判断
-    ZONE_TO_BASE,       // 前往基地
     OBJECT_GRAB,        // 抓取物体
     OBJECT_PLACING,     // 放置物体
     COUNT_INTERSECTION, // 计数路口
@@ -109,7 +107,8 @@ enum SystemState {
     RETURN_BASE,        // 返回基地
     BASE_ARRIVE,        // 到达基地
     END,                // 结束
-    ERROR_STATE         // 错误状态
+    ERROR_STATE,        // 错误状态
+    CONTINUE_SEARCH     // 继续搜索状态
 };
 
 // OBJECT_LOCATE子状态
@@ -124,12 +123,12 @@ enum LocateSubState {
 // 蓝牙功能配置
 #define ENABLE_BLUETOOTH     0
 // ESP32通信功能配置
-#define ENABLE_ESP           0
+#define ENABLE_ESP           1
 // 可同时启用多种通信方式
 
 // Navigation Controller Stop-and-Check Parameters
-#define NAV_CHECK_FORWARD_DURATION 150  // 短距前进的持续时间 (ms)
-#define NAV_CHECK_FORWARD_SPEED    80   // 短距前进的速度 (0-255)
+#define NAV_CHECK_FORWARD_DURATION 200  // 短距前进的持续时间 (ms)
+#define NAV_CHECK_FORWARD_SPEED    100   // 短距前进的速度 (0-255)
 #define NAV_CHECK_STABILIZE_DELAY  50   // 停车后等待稳定的时间 (ms)
 
 #endif // CONFIG_H 

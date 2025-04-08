@@ -20,7 +20,6 @@
 enum CommunicationType {
     COMM_SERIAL, // 普通串口
     COMM_BT,     // 蓝牙
-    COMM_ESP32,  // <--- 新增: 用于与 ESP32 等外部 UART 设备通信
     COMM_COUNT   // 通信类型数量
 };
 

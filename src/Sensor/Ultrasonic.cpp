@@ -59,7 +59,7 @@ unsigned long UltrasonicSensor::measurePulseDuration() {
     lastPulseDuration = pulseIn(echoPin, HIGH, ULTRASONIC_PULSE_TIMEOUT);
     
     if (lastPulseDuration == 0) {
-        Logger::warning("Ultrasonic", "超声波脉冲检测超时");
+    //    Logger::warning("Ultrasonic", "超声波脉冲检测超时");
     }
     
     Logger::debug("Ultrasonic", "原始脉冲时长: %lu us", lastPulseDuration);

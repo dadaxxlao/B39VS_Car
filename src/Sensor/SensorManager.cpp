@@ -99,7 +99,6 @@ bool SensorManager::checkAllSensorsHealth() {
         Logger::warning("SensorMgr", "颜色传感器状态异常: %d", (int)colorStatus);
         allHealthy = false;
     }
-    
     return allHealthy;
 }
 
@@ -107,7 +106,11 @@ void SensorManager::updateAll() {
     // 更新各个传感器数据
     updateInfrared();
     updateColor();
-    // 超声波传感器通常按需更新，不在这里调用
+    
+    // 主动更新超声波传感器
+    // 超声波传感器在状态机中很重要，应当主动更新
+    float distance;
+    getDistanceCm(distance); // 这会调用measurePulseDuration()更新数据
 }
 
 void SensorManager::updateInfrared() {
@@ -139,10 +142,10 @@ bool SensorManager::getDistanceCm(float& distance) {
     float newDistance = ultrasonicSensor.getDistanceCmFromDuration(duration);
     
     // 简单的异常值过滤
-    if (newDistance <= 0 || newDistance > 400) {
+    if (newDistance <= 0 || newDistance > 1000) {
         // 测量值异常，返回上次有效值
-        Logger::warning("SensorMgr", "超声波测量异常值: %f，使用上次值: %f", 
-                        newDistance, lastValidDistance);
+        // Logger::warning("SensorMgr", "超声波测量异常值: %f，使用上次值: %f", 
+        //                 newDistance, lastValidDistance);
         
         // 如果有上次有效值，则使用它
         if (lastValidDistance > 0) {
@@ -309,4 +312,7 @@ void SensorManager::debugColorSensor() {
         Logger::warning("SensorMgr", "尝试从未初始化的颜色传感器打印调试信息");
     }
     colorSensor.debugPrint();
-} 
+}
+
+
+ 

@@ -68,10 +68,10 @@ LineFollower::TriggerType LineFollower::update() {
 
 
     // 检查边缘触发模式
-    if (sensorValues[0] == 0 || sensorValues[1] == 0) {
+    if (sensorValues[0] == 0 && sensorValues[1] == 0) {
         Logger::debug("LineFoll", "边缘触发: 左边缘");
         return TRIGGER_LEFT_EDGE;
-    } else if (sensorValues[6] == 0 || sensorValues[7] == 0) {
+    } else if (sensorValues[6] == 0 && sensorValues[7] == 0) {
         Logger::debug("LineFoll", "边缘触发: 右边缘");
         return TRIGGER_RIGHT_EDGE;
     }

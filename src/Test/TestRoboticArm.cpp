@@ -109,7 +109,7 @@ void loop() {
     
     // 1.4 微微松开夹爪
     Logger::info("Test", "微微松开夹爪");
-    roboticArm.adjustArm(1500, 1600, 600);
+    roboticArm.adjustArm(1500, 1600, 0);
     delay(3000); // 等待3秒
     
     // 1.5 重新夹紧

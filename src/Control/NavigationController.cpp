@@ -79,7 +79,7 @@ bool NavigationController::checkForObstacle() {
     }
 
     // 检查距离是否在有效范围内并小于阈值
-    if (distance < m_obstacleThreshold && distance > 0) { // 添加 distance > 0 过滤无效读数
+    if (distance < m_obstacleThreshold && distance > 5) { // 添加 distance > 0 过滤无效读数
         Logger::info("NavCtrl", "[CheckObstacle] 检测到障碍物，距离: %.2f cm (阈值: %.1f cm)", distance, m_obstacleThreshold);
         return true;
     }

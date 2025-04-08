@@ -71,49 +71,11 @@ void setup() {
 }
 ```
 
-**新增：配置与其他 UART 设备通信 (例如 ESP32 on Arduino Mega)**
-
-如果你使用的是像 Arduino Mega 这样具有多个硬件串口的板子，或者使用 SoftwareSerial 连接到特定引脚的外部设备（如 ESP32），你可以配置 Logger 将日志发送到该串口。
-
-```cpp
-// 假设 Arduino Mega 通过引脚 16(TX2), 17(RX2) 连接 ESP32
-// #include "Utils/Config.h" // 假设 ESP_BAUD_RATE 在此定义
-
-void setup() {
-  // 初始化本地 USB 串口
-  Serial.begin(115200);
-  
-  // 初始化 Logger
-  Logger::init();
-
-  // 初始化连接 ESP32 的硬件串口 Serial2
-  Serial2.begin(ESP_BAUD_RATE); 
-
-  // 配置 Logger 使用 Serial2
-  Logger::setStream(COMM_ESP32, &Serial2);   // 关联 Serial2 到 COMM_ESP32
-  Logger::enableComm(COMM_ESP32, true);    // 启用 COMM_ESP32 通道
-  Logger::setLogLevel(COMM_ESP32, LOG_LEVEL_DEBUG); // 设置该通道的日志级别
-
-  // (可选) 禁用 Logger 通过默认 Serial (USB口) 输出日志
-  // Logger::enableComm(COMM_SERIAL, false);
-
-  Logger::info("SYSTEM", "Logger configured for ESP32 via Serial2.");
-}
-```
-
-对于使用 SoftwareSerial 的情况，只需将 `&Serial2` 替换为你的 `SoftwareSerial` 对象指针即可。
-
 ### 启用/禁用通道
 
 ```cpp
 // 禁用蓝牙日志（节省资源）
 Logger::enableComm(COMM_BT, false);
-
-// 禁用 COMM_ESP32 通道日志
-Logger::enableComm(COMM_ESP32, false);
-
-// 禁用默认串口 (USB) 日志输出
-Logger::enableComm(COMM_SERIAL, false);
 
 // 启用其他通信日志...
 ```
@@ -185,43 +147,34 @@ Logger::configureChannel(COMM_BT, config);
 
 ```cpp
 #include "Utils/Logger.h"
-#include "Utils/Config.h" // 假设包含 ESP_BAUD_RATE
-// #include <SoftwareSerial.h> // 如果使用 SoftwareSerial
+#include <SoftwareSerial.h>
 
-// 如果使用 SoftwareSerial，取消注释下一行并定义引脚
-// SoftwareSerial espSerial(ESP_RX_PIN, ESP_TX_PIN);
+// 定义引脚
+#define BT_RX_PIN 2
+#define BT_TX_PIN 3
+
+// 创建蓝牙串口
+SoftwareSerial btSerial(BT_RX_PIN, BT_TX_PIN);
 
 void setup() {
-  // 初始化本地 USB 串口
-  Serial.begin(115200);
-  
-  // 初始化 Logger 系统
+  // 初始化日志系统
   Logger::init();
   
-  // --- 配置与 ESP32 通信 (使用 Serial2 on Mega) ---
-  Serial2.begin(ESP_BAUD_RATE);
-  Logger::setStream(COMM_ESP32, &Serial2);
-  Logger::enableComm(COMM_ESP32, true);
-  // --- End ESP32 Config ---
-
-  // --- 或者配置与 ESP32 通信 (使用 SoftwareSerial) ---
-  // espSerial.begin(ESP_BAUD_RATE);
-  // Logger::setStream(COMM_ESP32, &espSerial);
-  // Logger::enableComm(COMM_ESP32, true);
-  // --- End SoftwareSerial Config ---
+  // 配置蓝牙
+  btSerial.begin(9600);
+  Logger::setStream(COMM_BT, &btSerial);
+  Logger::enableComm(COMM_BT, true);
   
   // 配置日志级别
-  Logger::setGlobalLogLevel(LOG_LEVEL_INFO); // 全局 INFO
-  Logger::setLogLevel(COMM_ESP32, LOG_LEVEL_DEBUG); // ESP32 通道接收 DEBUG 信息
-  // Logger::enableComm(COMM_SERIAL, false); // (可选) 禁用 USB 日志
+  Logger::setGlobalLogLevel(LOG_LEVEL_INFO);
   
-  // 为特定模块启用调试日志 (会通过 COMM_ESP32 发送)
+  // 为特定模块启用调试日志
   Logger::setLogLevelForTag("MOTOR", LOG_LEVEL_DEBUG);
   Logger::setLogLevelForTag("SENSOR", LOG_LEVEL_DEBUG);
   
   // 记录启动信息
-  Logger::info("SYSTEM", "系统启动完成"); // 通过 Serial 和 Serial2 发送 (如果 COMM_SERIAL 未禁用)
-  Logger::debug("SYSTEM", "调试模式已启用"); // 只通过 Serial2 发送
+  Logger::info("SYSTEM", "系统启动完成");
+  Logger::debug("SYSTEM", "调试模式已启用"); // 不会显示，因为SYSTEM标签没有设置为DEBUG级别
 }
 
 void loop() {
@@ -229,30 +182,17 @@ void loop() {
   static int motorSpeed = 0;
   motorSpeed = (motorSpeed + 10) % 255;
   
-  // 使用标签记录电机信息 (会通过 Serial2 发送)
+  // 使用标签记录电机信息
   Logger::info("MOTOR", "电机速度更新: %d", motorSpeed);
-  Logger::debug("MOTOR", "PWM值: %d, 方向: 正向", motorSpeed); 
+  Logger::debug("MOTOR", "PWM值: %d, 方向: 正向", motorSpeed); // 会显示，因为MOTOR标签设为DEBUG级别
   
   // 读取传感器示例
   int sensorValue = analogRead(A0);
   if(sensorValue > 1000) {
     Logger::warning("SENSOR", "传感器读数异常: %d", sensorValue);
   } else {
-    Logger::debug("SENSOR", "传感器读数: %d", sensorValue); 
+    Logger::debug("SENSOR", "传感器读数: %d", sensorValue); // 会显示，因为SENSOR标签设为DEBUG级别
   }
-
-  // --- 示例: 直接通过 Serial2 与 ESP32 通信 --- 
-  // if (Serial2.available() > 0) { // 检查来自 ESP32 的数据
-  //   String cmd = Serial2.readStringUntil('\n');
-  //   Serial.print("Received via Serial2: "); Serial.println(cmd); // 本地调试
-  //   // process command...
-  // }
-  // static unsigned long lastPing = 0;
-  // if (millis() - lastPing > 5000) { // 每5秒发送一次 PING
-  //   Serial2.println("PING_FROM_ARDUINO");
-  //   lastPing = millis();
-  // }
-  // --- End Serial2 Example ---
   
   delay(1000);
 }
@@ -260,8 +200,8 @@ void loop() {
 
 ## 7. 故障排除
 
-- **没有日志输出**：检查通道是否启用 (`Logger::enableComm`)、日志级别是否正确设置 (`Logger::setLogLevel`, `Logger::setGlobalLogLevel`, `Logger::setLogLevelForTag`)、对应的串口（`Serial`, `Serial2`, `btSerial`, `espSerial`等）是否正确初始化 (`.begin()`) 并已关联 (`Logger::setStream`)。
-- **只有部分日志显示**：检查标签日志级别 (`Logger::setLogLevelForTag`) 和通道日志级别 (`Logger::setLogLevel`) 的组合设置。
+- **没有日志输出**：检查通道是否启用、日志级别是否正确设置、串口是否正确初始化
+- **只有部分日志显示**：检查标签日志级别和通道日志级别的组合设置
 - **内存不足**：减小缓冲区大小，减少标签数量（MAX_TAGS默认为10）
 - **格式化不正确**：Arduino的`vsnprintf`支持有限，避免复杂的格式化字符串
 
@@ -275,4 +215,4 @@ void loop() {
 
 ---
 
-*文档版本: 2.1* 
+*文档版本: 2.0* 

@@ -74,6 +74,12 @@ public:
      */
     bool isTurnComplete() const;
 
+    /**
+     * @brief Resets the state of the AccurateTurn module back to IDLE.
+     * Allows starting a new turn after one has completed or timed out.
+     */
+    void reset();
+
 private:
     MotionController& m_motionController; // Reference to the motion controller
     SensorManager& m_sensorManager;     // Reference to the sensor manager
