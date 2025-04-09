@@ -105,12 +105,11 @@ bool SensorManager::checkAllSensorsHealth() {
 void SensorManager::updateAll() {
     // 更新各个传感器数据
     updateInfrared();
-    updateColor();
-    
+    //updateColor();
     // 主动更新超声波传感器
     // 超声波传感器在状态机中很重要，应当主动更新
-    float distance;
-    getDistanceCm(distance); // 这会调用measurePulseDuration()更新数据
+    // float distance;
+    // getDistanceCm(distance); // 这会调用measurePulseDuration()更新数据
 }
 
 void SensorManager::updateInfrared() {

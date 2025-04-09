@@ -61,12 +61,12 @@ void RoboticArm::servoControl(int angle_base, int angle_arm, int angle_claw) {
 bool RoboticArm::checkGrabCondition() {
     float distance = ultrasonic.getDistance();
     // 实时显示距离值
-    Serial.print("超声波距离: ");
-    Serial.print(distance);
-    Serial.println(" cm");
+    Serial2.print("超声波距离: ");
+    Serial2.print(distance);
+    Serial2.println(" cm");
     
     // 当距离在12-13.5cm范围内时返回true
-    return (distance >= 12.0f && distance <= 13.5f);
+    return (distance >= 12.5f && distance <= 13.5f);
 }
 
 bool RoboticArm::grab() {

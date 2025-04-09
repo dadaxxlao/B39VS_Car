@@ -17,9 +17,12 @@ enum NavigationState {
     NAV_MOVING_TO_STOP,      // 正在执行短距前进
     NAV_STOPPED_FOR_CHECK,   // 已停止，准备静态检测
     NAV_AT_JUNCTION,         // 已完成静态检测，等待StateMachine决策
-    NAV_AVOIDING_RIGHT,      // 向右平移避障
-    NAV_AVOIDING_FORWARD,    // 向前行驶绕过障碍物
-    NAV_AVOIDING_LEFT,       // 向左平移寻找线
+    NAV_AVOIDING_RIGHT,      // 向右平移避障 (标准流程 Step 1)
+    NAV_AVOIDING_FORWARD,    // 向前行驶绕过障碍物 (标准流程 Step 2)
+    NAV_AVOIDING_LEFT,       // 向左平移寻找线 (标准流程 Step 3 - Find Line)
+    NAV_AVOIDING_LEFT_FIRST, // 向左平移避障 (反向流程 Step 1)
+    NAV_AVOIDING_FORWARD_REVERSE, // 向前行驶绕过障碍物 (反向流程 Step 2)
+    NAV_AVOIDING_RIGHT_FINDLINE, // 向右平移寻找线 (反向流程 Step 3 - Find Line)
     NAV_VERIFYING_ALL_WHITE, // 全白验证
     NAV_ERROR                // 导航错误状态
 };
@@ -66,8 +69,13 @@ private:
     // 新增：全白验证相关
     bool m_needsVerification; // 是否需要验证
     unsigned long m_verificationStartTime; // 验证开始时间
-    const unsigned long VERIFICATION_TURN_DURATION = 50; // 微转向时间(0.05秒)
-    
+    const unsigned long VERIFICATION_TURN_DURATION = 100; // 微转向时间(0.05秒)
+
+    // 新增：避障启用标志
+    bool m_obstacleAvoidanceEnabled;
+    // 新增：避障方向反转标志
+    bool m_obstacleAvoidanceReverse; 
+
     // PID控制封装方法
     void applyPIDControl(float turnAmount, int baseSpeed);
 
@@ -94,6 +102,15 @@ public:
     
     // 强制停止导航
     void stop();
+    
+    // 设置避障是否启用
+    void setObstacleAvoidanceEnabled(bool enabled);
+
+    // 设置避障方向是否反转
+    void setObstacleAvoidanceReverse(bool reverse);
+
+    // 设置基础速度
+    void setBaseSpeed(int speed);
     
     // 常量
  

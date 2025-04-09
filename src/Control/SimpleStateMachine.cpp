@@ -32,7 +32,7 @@ SimpleStateMachine::SimpleStateMachine(SensorManager& sm, MotionController& mc,
     , m_currentState(INITIALIZED)
     , m_locateSubState(TURN_AROUND)
     , m_zoneCounter(0)
-    , m_colorCounter(0)
+    , m_colorCounter(1)
     , m_blockCounter(0) // 初始化物块计数器
     , m_detectedColorCode(COLOR_UNKNOWN)
     , m_actionStartTime(0)
@@ -114,7 +114,7 @@ void SimpleStateMachine::update() {
             transitionTo(OBJECT_FIND);
         }
         } else {
-            Logger::warning("SimpleStateMachine", "无法测量有效距离");
+            Logger::debug("SimpleStateMachine", "无法测量有效距离");
         }
 
 
@@ -122,7 +122,7 @@ void SimpleStateMachine::update() {
     else if (m_currentState == OBJECT_FIND) {
         // 寻找物块状态
         m_zoneCounter = 0;
-        
+        m_navigationController.setObstacleAvoidanceReverse(false);
         if (!m_flags.m_isTurning) {
             m_navigationController.update();
             
@@ -183,7 +183,7 @@ void SimpleStateMachine::update() {
             m_zoneCounter++;
             m_actionStartTime = millis();
 #if USE_MINIMAL_LOGGING == 0
-            Logger::info("SimpleStateMachine", F("进入超声波检测状态，执行左转，区域计数: %d"), m_zoneCounter);
+            // Logger::info("SimpleStateMachine", "进入超声波检测状态，执行左转，区域计数: %d", m_zoneCounter);
 #endif
             return;
         }
@@ -197,17 +197,18 @@ void SimpleStateMachine::update() {
             distance = m_sensorManager.getDistanceCmFromDuration(duration);
             success = true;
         }
+
         
         if (distance < OBJECT_DETECTION_THRESHOLD) {
 #if USE_MINIMAL_LOGGING == 0
-            Logger::info("SimpleStateMachine", F("检测到物块，距离: %.2f cm"), distance);
+            Logger::info("SimpleStateMachine", "检测到物块，距离: %f cm", distance);
 #endif
             m_actionStartTime = 0;
             transitionTo(OBJECT_GRAB);
         } 
         else if (millis() - m_actionStartTime > 1000) {
 #if USE_MINIMAL_LOGGING == 0
-            Logger::info("SimpleStateMachine", F("未检测到物块，执行右转并继续循线"));
+            Logger::info("SimpleStateMachine", "未检测到物块，执行右转并继续循线");
 #endif
             m_actionStartTime = 0;
             
@@ -261,7 +262,11 @@ void SimpleStateMachine::update() {
         if (m_flags.m_isTurning) {
             return;
         }
-        
+
+        // 在此状态禁用避障
+        m_navigationController.setObstacleAvoidanceEnabled(false);
+        // 设置临时基础速度
+        m_navigationController.setBaseSpeed(40);
         if (m_actionStartTime == 0) {
             m_actionStartTime = millis();
             m_flags.m_isActionComplete = false;
@@ -322,11 +327,21 @@ void SimpleStateMachine::update() {
 #if USE_MINIMAL_LOGGING < 2
                 Logger::info("SimpleStateMachine", F("抓取序列完成"));
 #endif
+                //Serial2.println("抓取序列完成");
+                //Serial2.println("等待颜色输入");
                 
-                m_detectedColorCode = ColorCode::COLOR_RED;
-#if USE_MINIMAL_LOGGING < 2
-                Logger::info("SimpleStateMachine", F("检测到物体颜色: %d"), m_detectedColorCode);
-#endif
+                // 调用新的函数读取颜色代码
+                m_detectedColorCode = readColorCodeFromSerial2();
+                
+                // 根据读取结果进行日志记录或处理
+                if (m_detectedColorCode == COLOR_UNKNOWN) {
+                    //Logger::warning("StateMachine", "未能从 Serial2 读取有效的颜色代码或超时。");
+                    // 这里可以添加错误处理逻辑，例如重试或进入错误状态
+                    // transitionTo(ERROR_STATE);
+                    m_detectedColorCode = COLOR_RED;
+                } else {
+                    //Logger::info("StateMachine", "从 Serial2 读取到颜色代码: %d", m_detectedColorCode);
+                }
                 
                 m_flags.m_isActionComplete = true;
                 isFollowingLine = true;
@@ -367,13 +382,13 @@ void SimpleStateMachine::update() {
         m_navigationController.update();
         
         NavigationState navState = m_navigationController.getCurrentNavigationState();
-        
+        m_navigationController.setObstacleAvoidanceReverse(true);
         if (navState == NAV_AT_JUNCTION) {
             JunctionType junction = m_navigationController.getDetectedJunctionType();
             
 #if USE_MINIMAL_LOGGING < 2
-            Logger::info("SimpleStateMachine", "OBJECT_PLACING状态 - 检测到路口: %s", 
-                       this->junctionTypeToString(junction));
+            //Logger::info("SimpleStateMachine", "OBJECT_PLACING状态 - 检测到路口: %s", 
+            //           this->junctionTypeToString(junction));
 #endif
             
             if (junction == RIGHT_TURN || junction == T_FORWARD) {
@@ -395,7 +410,7 @@ void SimpleStateMachine::update() {
                 // Replace MotionController turn with AccurateTurn
                 m_accurateTurn.startTurnLeft();
                 m_flags.m_isTurning = true;
-                m_colorCounter = 0; // Reset counter before counting
+                m_colorCounter = 1; // Reset counter before counting
                 transitionTo(COUNT_INTERSECTION);
             }
             else {
@@ -413,7 +428,7 @@ void SimpleStateMachine::update() {
         if (m_flags.m_isTurning) {
             return; // Wait for turn to complete
         }
-
+        m_navigationController.setBaseSpeed(40);
         m_navigationController.update();
         
         NavigationState navState = m_navigationController.getCurrentNavigationState();
@@ -421,7 +436,7 @@ void SimpleStateMachine::update() {
         if (navState == NAV_AT_JUNCTION) {
             JunctionType junction = m_navigationController.getDetectedJunctionType();
             
-            if (junction == T_RIGHT) {
+            if (junction == T_RIGHT || junction == RIGHT_TURN) {
                 if (m_colorCounter == m_detectedColorCode) {
 #if USE_MINIMAL_LOGGING < 2
                     Logger::info("SimpleStateMachine", "达到目标区域，执行精确右转");
@@ -452,13 +467,13 @@ void SimpleStateMachine::update() {
             m_actionStartTime = millis();
             m_flags.m_isActionComplete = false;
 #if USE_MINIMAL_LOGGING < 2
-            Logger::info("SimpleStateMachine", "进入物体释放状态，循迹前进2秒后停车");
+            Logger::info("SimpleStateMachine", "进入物体释放状态，循迹前进1.5秒后停车");
 #endif
             
             m_navigationController.resumeFollowing();
         }
         
-        if (!m_flags.m_isActionComplete && (millis() - m_actionStartTime < 2000)) {
+        if (!m_flags.m_isActionComplete && (millis() - m_actionStartTime < 1500)) {
             m_navigationController.update();
             return;
         }
@@ -579,13 +594,13 @@ void SimpleStateMachine::update() {
             JunctionType junction = m_navigationController.getDetectedJunctionType();
             
 #if USE_MINIMAL_LOGGING < 2
-            Logger::info("SimpleStateMachine", F("BACK_OBJECT_FIND状态 - 检测到路口: %s"), 
+            Logger::info("SimpleStateMachine", "BACK_OBJECT_FIND状态 - 检测到路口: %s", 
                        this->junctionTypeToString(junction));
 #endif
             
-            if (junction == T_FORWARD) {
+            if (junction == T_FORWARD || junction == LEFT_TURN || junction == RIGHT_TURN) {
 #if USE_MINIMAL_LOGGING < 2
-                Logger::info("SimpleStateMachine", F("检测到T字路口，执行精确右转进入OBJECT_FIND状态"));
+                Logger::info("SimpleStateMachine", "检测到T字路口，执行精确右转进入OBJECT_FIND状态");
 #endif
                 // Replace MotionController turn with AccurateTurn
                 m_accurateTurn.startTurnRight();
@@ -619,7 +634,7 @@ void SimpleStateMachine::update() {
                        this->junctionTypeToString(junction));
 #endif
             
-            if (junction == T_FORWARD) {
+            if (junction == T_FORWARD || junction == LEFT_TURN || junction == RIGHT_TURN) {
                 // Replace MotionController turn with AccurateTurn
                 m_accurateTurn.startTurnLeft();
                 m_flags.m_isTurning = true;
@@ -714,12 +729,14 @@ void SimpleStateMachine::transitionTo(SystemState newState) {
         return;
     }
     
+    
 #if USE_MINIMAL_LOGGING < 2
     Logger::info("SimpleStateMachine", "状态切换: %s -> %s", 
                systemStateToString(m_currentState), 
                systemStateToString(newState));
 #endif
-    
+    // 恢复基础速度
+    m_navigationController.setBaseSpeed(FOLLOW_SPEED);
     // 执行状态退出操作
     if (m_currentState == OBJECT_GRAB || 
         m_currentState == OBJECT_PLACING || 
@@ -737,6 +754,8 @@ void SimpleStateMachine::transitionTo(SystemState newState) {
         if (m_currentState != ERGODIC_JUDGE) { // 如果不是从遍历判断进入，才重置
             m_zoneCounter = 0;
         }
+        // 在此状态禁用避障
+        m_navigationController.setObstacleAvoidanceEnabled(true);
         // 开始巡线
         m_navigationController.resumeFollowing();
     }
@@ -747,11 +766,13 @@ void SimpleStateMachine::transitionTo(SystemState newState) {
     }
     else if (newState == ULTRASONIC_DETECT) {
         // 准备进行超声波检测
+        m_navigationController.setObstacleAvoidanceEnabled(false);
         m_actionStartTime = 0; // 确保计时器重置
     }
     else if (newState == OBJECT_PLACING) {
         // 重置颜色计数器
-        m_colorCounter = 0;
+        m_navigationController.setObstacleAvoidanceEnabled(true);
+        m_colorCounter = 1;
     }
     else if (newState == END) {
         // 停止所有动作
@@ -781,6 +802,13 @@ const char* SimpleStateMachine::systemStateToString(SystemState state) {
         case CONTINUE_SEARCH: return "CONTINUE_SEARCH";
         case OBJECT_GRAB: return "OBJECT_GRAB";
         case OBJECT_PLACING: return "OBJECT_PLACING";
+        case COUNT_INTERSECTION: return "COUNT_INTERSECTION";
+        case ERGODIC_JUDGE: return "ERGODIC_JUDGE";
+        case BACK_OBJECT_FIND: return "BACK_OBJECT_FIND";
+        case RETURN_BASE: return "RETURN_BASE";
+        case BASE_ARRIVE: return "BASE_ARRIVE";
+        case END: return "END";
+        case ERROR_STATE: return "ERROR_STATE";
         default: return "UNKNOWN_STATE";
     }
 }
@@ -848,4 +876,64 @@ int SimpleStateMachine::getJunctionCounter() const {
  */
 ColorCode SimpleStateMachine::getDetectedColor() const {
     return m_detectedColorCode;
+}
+
+// 新增的函数实现
+ColorCode SimpleStateMachine::readColorCodeFromSerial2(unsigned long timeoutMillis) {
+    //Logger::debug("StateMachine", "readColorCodeFromSerial2: 开始尝试读取颜色代码...");
+    String colorStr = "";
+    unsigned long startTime = millis();
+    bool receivedData = false;
+    ColorCode detectedColor = COLOR_UNKNOWN; // 默认值
+
+    while (millis() - startTime < timeoutMillis) {
+        if (Serial2.available() > 0) {
+            receivedData = true;
+            char c = Serial2.read();
+            // Logger::debug("StateMachine", "Read char: %c (ASCII: %d)", isprint(c) ? c : '.', c);
+
+            if (c == '\n' || c == '\r') {
+                if (colorStr.length() > 0) {
+                    // Logger::debug("StateMachine", "readColorCodeFromSerial2: 收到结束符，字符串为: '%s'", colorStr.c_str());
+                    break; // 收到结束符且字符串非空，结束读取
+                } else {
+                    // 忽略开头的或连续的换行/回车符
+                    continue;
+                }
+            }
+            // 只添加数字字符到字符串，防止接收到其他调试信息干扰
+            if (isdigit(c)) {
+                 colorStr += c;
+            }
+             else {
+                 // Logger::warning("StateMachine", "readColorCodeFromSerial2: 收到非数字字符 '%c' (ASCII: %d)，已忽略。", isprint(c) ? c : '.', c);
+             }
+
+        } 
+        // 不需要delay，让循环尽快检查 Serial2
+    }
+
+    if (colorStr.length() > 0) {
+        // Logger::debug("StateMachine", "readColorCodeFromSerial2: 读取完成，最终字符串: '%s'", colorStr.c_str());
+        int colorValue = colorStr.toInt();
+        // Logger::debug("StateMachine", "readColorCodeFromSerial2: 转换为整数: %d", colorValue);
+
+        if (colorValue >= 1 && colorValue <= 5) {
+            detectedColor = static_cast<ColorCode>(colorValue);
+            Logger::info("StateMachine", "readColorCodeFromSerial2: 解析到有效颜色代码: %d", detectedColor);
+        } else {
+            Logger::warning("StateMachine", "readColorCodeFromSerial2: 收到无效或超出范围的颜色代码值: %d (来自字符串 '%s')", colorValue, colorStr.c_str());
+            detectedColor = COLOR_UNKNOWN;
+        }
+    } else if (receivedData) {
+        // Logger::debug("StateMachine", "readColorCodeFromSerial2: 只收到了换行/回车或非数字字符，未读取到有效颜色代码。");
+        detectedColor = COLOR_UNKNOWN;
+    } else {
+        // 超时
+        Logger::warning("StateMachine", "readColorCodeFromSerial2: 读取颜色代码超时 (%lu ms)，未收到有效数据。", timeoutMillis);
+        detectedColor = COLOR_UNKNOWN;
+    }
+
+    // Logger::debug("StateMachine", "readColorCodeFromSerial2: 函数返回: %d", detectedColor);
+    return detectedColor;
 } 

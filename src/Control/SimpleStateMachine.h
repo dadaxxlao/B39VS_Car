@@ -49,6 +49,8 @@ public:
     // 处理上位机命令
     void handleCommand(const char* command);
     
+    // 新增函数：从Serial2读取颜色代码
+    ColorCode readColorCodeFromSerial2(unsigned long timeoutMillis = 20000);
 private:
     // 组件引用
     SensorManager& m_sensorManager;
@@ -77,6 +79,7 @@ private:
     void logStateTransition(SystemState oldState, SystemState newState);
     const char* systemStateToString(SystemState state);
     const char* junctionTypeToString(JunctionType type) const;
+    
 };
 
 #endif // SIMPLE_STATE_MACHINE_H 

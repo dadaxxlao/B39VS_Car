@@ -33,7 +33,7 @@
 // 传感器引脚
 #define ULTRASONIC_TRIG_PIN  22
 #define ULTRASONIC_ECHO_PIN  23
-
+#define BUZZER_PIN           24
 // 蓝牙HM-10模块引脚
 #define BT_RX_PIN            16  // Arduino接收，连接到HM-10的TX
 #define BT_TX_PIN            17  // Arduino发送，连接到HM-10的RX
@@ -52,7 +52,7 @@
 // 运动参数
 #define MAX_SPEED            255
 #define TURN_SPEED           100
-#define FOLLOW_SPEED         50
+#define FOLLOW_SPEED         60
 #define SHARP_TURN_SPEED     200
 #define DEFAULT_SPEED        100  // 麦克纳姆轮默认移动速度
 
@@ -82,13 +82,13 @@ enum JunctionType {
 
 // 颜色编码
 enum ColorCode {
-    COLOR_UNKNOWN,
-    COLOR_RED,    // 1
-    COLOR_BLUE,  // 2
-    COLOR_YELLOW,   // 3
-    COLOR_WHITE,  // 4
-    COLOR_BLACK,  // 5
-    COLOR_COUNT   // 总颜色数量
+    COLOR_UNKNOWN = 0, // 保持 0 为未知
+    COLOR_WHITE   = 1, // 白色
+    COLOR_BLACK   = 2, // 黑色
+    COLOR_RED     = 3, // 红色
+    COLOR_BLUE    = 4, // 蓝色
+    COLOR_YELLOW  = 5, // 黄色
+    COLOR_COUNT      // 总颜色数量，值为6
 };
 
 /**
@@ -123,12 +123,12 @@ enum LocateSubState {
 // 蓝牙功能配置
 #define ENABLE_BLUETOOTH     0
 // ESP32通信功能配置
-#define ENABLE_ESP           0
+#define ENABLE_ESP           1
 // 可同时启用多种通信方式
 
 // Navigation Controller Stop-and-Check Parameters
-#define NAV_CHECK_FORWARD_DURATION 200  // 短距前进的持续时间 (ms)
-#define NAV_CHECK_FORWARD_SPEED    100   // 短距前进的速度 (0-255)
+#define NAV_CHECK_FORWARD_DURATION 220  // 短距前进的持续时间 (ms)
+#define NAV_CHECK_FORWARD_SPEED    80   // 短距前进的速度 (0-255)
 #define NAV_CHECK_STABILIZE_DELAY  50   // 停车后等待稳定的时间 (ms)
 
 #endif // CONFIG_H 

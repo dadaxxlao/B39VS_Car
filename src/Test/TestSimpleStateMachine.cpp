@@ -36,14 +36,15 @@ bool systemInitialized = false;
 void setup() {
   // 初始化串口通信
   Serial.begin(115200);
+  Serial2.begin(115200);
   delay(1000);
   
   // 初始化Logger系统
   Logger::init();
-  
+  Logger::setGlobalLogLevel(LOG_LEVEL_INFO); 
+  Serial2.begin(ESP_BAUD_RATE);
   // 初始化ESP32串口通信 (条件编译，只在ENABLE_ESP启用时)
 #if ENABLE_ESP
-  Serial2.begin(ESP_BAUD_RATE);
   Serial.println("ESP32通信初始化 (Serial2)");
   
   // 配置Logger使用ESP32通道
@@ -82,7 +83,7 @@ void setup() {
 void processCommand(String command) {
   command.trim();
   
-  if (command == "" || command == "\r") {
+  if (command == " " || command == "\r" || command == "s") {
     // 用户按下回车，启动任务
     stateMachine.handleCommand("START");
     Serial.println("任务已启动");
@@ -94,7 +95,7 @@ void processCommand(String command) {
     Serial.println("系统已停止");
     Logger::info("CMD", "系统已停止");
   }
-  else if (command == "reset") {
+  else if (command == "reset" || command == "r") {
     stateMachine.handleCommand("RESET");
     navigationController.init();
     Serial.println("系统已重置");
