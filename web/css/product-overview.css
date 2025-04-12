@@ -1,0 +1,122 @@
+/* Product Overview Section Styles */
+.product-overview {
+    padding: 80px 0;
+    background-color: #f8f9fa;
+    position: relative;
+    overflow: hidden;
+}
+
+.product-overview::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-image: url('../images/earth-bg.svg');
+    background-size: cover;
+    background-position: center;
+    opacity: 0.05;
+    z-index: 0;
+}
+
+.product-overview .container {
+    position: relative;
+    z-index: 1;
+}
+
+.product-overview-content {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 40px;
+}
+
+.product-overview-text {
+    flex: 1;
+    max-width: 550px;
+}
+
+.product-overview-text h2 {
+    font-size: 2.5rem;
+    margin-bottom: 20px;
+    color: #1a2b49;
+    font-weight: 700;
+}
+
+.product-overview-text p {
+    font-size: 1.1rem;
+    line-height: 1.6;
+    margin-bottom: 25px;
+    color: #4a5568;
+}
+
+.product-overview-image {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.product-overview-image img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 8px;
+    box-shadow: 0 15px 30px rgba(0, 0, 0, 0.1);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.product-overview-image img:hover {
+    transform: translateY(-10px);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+}
+
+.product-overview-features {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    margin-top: 20px;
+}
+
+.overview-feature {
+    background-color: #ffffff;
+    padding: 10px 20px;
+    border-radius: 30px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 500;
+    color: #2d3748;
+    transition: all 0.3s ease;
+}
+
+.overview-feature:hover {
+    background-color: #1a2b49;
+    color: white;
+    transform: translateY(-3px);
+}
+
+.overview-feature i {
+    color: #4299e1;
+}
+
+.overview-feature:hover i {
+    color: #63b3ed;
+}
+
+/* Responsive styles */
+@media (max-width: 992px) {
+    .product-overview-content {
+        flex-direction: column-reverse;
+        text-align: center;
+    }
+    
+    .product-overview-text {
+        max-width: 100%;
+    }
+    
+    .product-overview-features {
+        justify-content: center;
+    }
+}

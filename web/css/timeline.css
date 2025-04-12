@@ -1,0 +1,142 @@
+/* Timeline Styles */
+.timeline-container {
+    position: relative;
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 40px 0;
+}
+
+.timeline-container.vertical::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 50%;
+    width: 4px;
+    height: 100%;
+    background-color: var(--primary-color);
+    transform: translateX(-50%);
+}
+
+.timeline-item {
+    position: relative;
+    margin-bottom: 60px;
+    display: flex;
+    justify-content: flex-end;
+    padding-right: 30px;
+    width: 50%;
+}
+
+.timeline-item:nth-child(even) {
+    align-self: flex-end;
+    justify-content: flex-start;
+    padding-right: 0;
+    padding-left: 30px;
+    margin-left: 50%;
+}
+
+.timeline-icon {
+    position: absolute;
+    top: 0;
+    right: -28px;
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background-color: var(--light-bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 0 0 4px var(--primary-color);
+    z-index: 1;
+}
+
+.timeline-item:nth-child(even) .timeline-icon {
+    right: auto;
+    left: -28px;
+}
+
+.timeline-icon i {
+    font-size: 24px;
+    color: var(--primary-color);
+}
+
+.timeline-date {
+    position: absolute;
+    top: 0;
+    right: -150px;
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--primary-color);
+    padding: 10px 0;
+}
+
+.timeline-item:nth-child(even) .timeline-date {
+    right: auto;
+    left: -150px;
+    text-align: right;
+}
+
+.timeline-content {
+    background-color: var(--light-text);
+    border-radius: 10px;
+    padding: 25px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+    transition: var(--transition);
+}
+
+.timeline-content:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+}
+
+.timeline-content h3 {
+    font-size: 22px;
+    color: var(--secondary-color);
+    margin-bottom: 10px;
+}
+
+.timeline-content p {
+    font-size: 16px;
+    line-height: 1.6;
+    color: #666;
+}
+
+/* Responsive Timeline */
+@media (max-width: 768px) {
+    .timeline-container.vertical::before {
+        left: 30px;
+    }
+    
+    .timeline-item {
+        width: 100%;
+        padding-left: 70px;
+        padding-right: 0;
+    }
+    
+    .timeline-item:nth-child(even) {
+        margin-left: 0;
+        padding-left: 70px;
+    }
+    
+    .timeline-icon {
+        left: 0;
+        right: auto;
+    }
+    
+    .timeline-item:nth-child(even) .timeline-icon {
+        left: 0;
+    }
+    
+    .timeline-date {
+        position: relative;
+        right: auto;
+        left: auto;
+        top: auto;
+        margin-bottom: 10px;
+        display: inline-block;
+    }
+    
+    .timeline-item:nth-child(even) .timeline-date {
+        left: auto;
+        text-align: left;
+    }
+}

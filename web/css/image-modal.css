@@ -1,0 +1,89 @@
+.image-modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgba(0, 0, 0, 0.9);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.image-modal.show {
+    opacity: 1;
+}
+
+.modal-content {
+    display: block;
+    position: relative;
+    margin: auto;
+    max-width: 90%;
+    max-height: 90vh;
+    top: 50%;
+    transform: translateY(-50%) scale(0.9);
+    transition: transform 0.3s ease;
+    box-shadow: 0 5px 30px rgba(0, 0, 0, 0.3);
+}
+
+.image-modal.show .modal-content {
+    transform: translateY(-50%) scale(1);
+}
+
+.close-modal {
+    position: absolute;
+    top: 20px;
+    right: 30px;
+    color: #f1f1f1;
+    font-size: 40px;
+    font-weight: bold;
+    transition: 0.3s;
+    z-index: 1001;
+    cursor: pointer;
+}
+
+.close-modal:hover,
+.close-modal:focus {
+    color: var(--primary-color);
+    text-decoration: none;
+    transform: rotate(90deg);
+}
+
+.modal-caption {
+    position: absolute;
+    bottom: 20px;
+    left: 0;
+    width: 100%;
+    text-align: center;
+    color: white;
+    padding: 10px 0;
+    background-color: rgba(0, 0, 0, 0.7);
+    font-size: 18px;
+}
+
+/* Animation for modal */
+@keyframes zoomIn {
+    from {transform: translateY(-50%) scale(0);}
+    to {transform: translateY(-50%) scale(1);}
+}
+
+@keyframes fadeIn {
+    from {opacity: 0;}
+    to {opacity: 1;}
+}
+
+/* Responsive adjustments */
+@media screen and (max-width: 768px) {
+    .close-modal {
+        top: 10px;
+        right: 15px;
+        font-size: 30px;
+    }
+    
+    .modal-caption {
+        font-size: 16px;
+        padding: 8px 0;
+    }
+}

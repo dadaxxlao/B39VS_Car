@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register - ECOCLAW Robotics</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/login.css">
+</head>
+<body>
+    <header class="header scrolled">
+        <div class="container header-container">
+            <div class="logo">
+                <a href="index.html">
+                    <img src="./images/company-logo-white.png" alt="Company Logo" id="header-logo">
+                </a>
+            </div>
+            <nav class="main-nav">
+                <ul class="nav-list">
+                    <li><a href="index.html">Home</a></li>
+                    <li><a href="solutions.html">Solutions</a></li>
+                    <li><a href="about.html">About</a></li>
+                    <li><a href="contact.html">Contact</a></li>
+                </ul>
+            </nav>
+            <div class="header-buttons">
+                <a href="login.html" class="btn btn-outline">Log In</a>
+                <a href="get-started.html" class="btn btn-primary active">Get Started</a>
+            </div>
+            <button class="mobile-menu-toggle">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+        </div>
+    </header>
+
+    <section class="login-section">
+        <div class="login-container" style="max-width: 500px;">
+            <div class="login-header">
+                <h2>Create Account</h2>
+                <p>Fill in the information below to complete registration</p>
+            </div>
+            <form class="login-form" id="registerForm">
+                <div class="form-group">
+                    <input type="text" id="company" name="company" placeholder=" " required>
+                    <label for="company">Company Name</label>
+                </div>
+                <div class="form-group">
+                    <input type="text" id="name" name="name" placeholder=" " required>
+                    <label for="name">Contact Name</label>
+                </div>
+                <div class="form-group">
+                    <input type="email" id="email" name="email" placeholder=" " required>
+                    <label for="email">Email</label>
+                </div>
+                <div class="form-group">
+                    <input type="tel" id="phone" name="phone" placeholder=" " required>
+                    <label for="phone">Phone Number</label>
+                </div>
+                <div class="form-group">
+                    <input type="password" id="password" name="password" placeholder=" " required>
+                    <label for="password">Set Password</label>
+                </div>
+                <div class="form-group">
+                    <input type="password" id="confirmPassword" name="confirmPassword" placeholder=" " required>
+                    <label for="confirmPassword">Confirm Password</label>
+                </div>
+                <button type="submit" class="login-btn">Register</button>
+            </form>
+            <div class="login-footer">
+                <p>Already have an account? <a href="login.html">Login now</a></p>
+            </div>
+        </div>
+    </section>
+
+    <script src="js/main.js"></script>
+</body>
+</html>
